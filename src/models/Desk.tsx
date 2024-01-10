@@ -8,9 +8,11 @@ Title: Cyberpunk Desk
 */
 
 import * as THREE from 'three'
-import React, { useRef } from 'react'
+import React, { useRef, forwardRef } from 'react'
 import { useGLTF } from '@react-three/drei'
+import { GroupProps } from '@react-three/fiber'
 import { GLTF } from 'three-stdlib'
+import { Group } from 'three';
 
 type GLTFResult = GLTF & {
   nodes: {
@@ -35,14 +37,18 @@ type GLTFResult = GLTF & {
 
 type ContextType = Record<string, React.ForwardRefExoticComponent<JSX.IntrinsicElements['mesh']>>
 
-export function Desk(props: JSX.IntrinsicElements['group']) {
-  const { nodes, materials } = useGLTF('/cyberpunk_desk/scene.gltf') as GLTFResult
+type DeskProps = JSX.IntrinsicElements['group'] & {
+  // Aquí puedes añadir cualquier otra prop personalizada si es necesario
+};
+
+export const Desk = forwardRef<Group, DeskProps>((props, ref) => {
+  const { nodes, materials } = useGLTF('/cyberpunk_desk/scene.gltf') as GLTFResult;
   const position: [number, number, number] = [11, -5.5, 8];
   const rotation: [number, number, number] = [-Math.PI / 2, 0, 0];
   const scale = 1.5;
 
   return (
-    <group {...props} position={position} rotation={rotation} scale={scale} dispose={null}>
+    <group ref={ref} {...props} position={position} rotation={rotation} scale={scale} dispose={null}>
       <mesh geometry={nodes.Object_2.geometry} material={materials['1041']} />
       <mesh geometry={nodes.Object_3.geometry} material={materials['1042']} />
       <mesh geometry={nodes.Object_4.geometry} material={materials['1043']} />
@@ -51,7 +57,7 @@ export function Desk(props: JSX.IntrinsicElements['group']) {
       <mesh geometry={nodes.Object_7.geometry} material={materials['1055']} />
       <mesh geometry={nodes.Object_8.geometry} material={materials['1045']} />
     </group>
-  )
-}
+  );
+});
 
 useGLTF.preload('/cyberpunk_desk/scene.gltf')

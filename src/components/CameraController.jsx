@@ -3,7 +3,7 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 
-const CameraController = ({ setCameraDirection, setCameraUp }) => {
+const CameraController = ({ setCameraDirection, setCameraUp, spaceShipRef }) => {
   const { camera } = useThree();
   const moveForward = useRef(false);
   const moveBackward = useRef(false);
@@ -12,7 +12,7 @@ const CameraController = ({ setCameraDirection, setCameraUp }) => {
 
   const currentMovementSpeed = useRef(0);
   const movementAcceleration = 0.005;
-  const maxMovementSpeed = 0.5;
+  const maxMovementSpeed = 1;
 
   useFrame(() => {
     // Ajustar la velocidad de rotación y movimiento
@@ -23,9 +23,15 @@ const CameraController = ({ setCameraDirection, setCameraUp }) => {
 
 
     // Aplicar la rotación y el movimiento a la cámara
+
     camera.rotateX(rotationSpeed.x);
     camera.rotateY(rotationSpeed.y);
     camera.rotateZ(rotationSpeed.z);
+    // Asegúrate de que el objeto 3D exista antes de intentar manipularlo
+
+    spaceShipRef.current.rotation.x = camera.rotation.x;
+    spaceShipRef.current.rotation.y = camera.rotation.y;
+    spaceShipRef.current.rotation.z = camera.rotation.z;
 
     // Actualizar la dirección y el arriba de la cámara
     const dir = new THREE.Vector3();
@@ -40,6 +46,11 @@ const CameraController = ({ setCameraDirection, setCameraUp }) => {
       currentMovementSpeed.current *= 0.97; // Desacelerar
     }
     camera.position.addScaledVector(dir, currentMovementSpeed.current);
+    camera.getWorldDirection(dir);
+    const pos = new THREE.Vector3();
+    camera.getWorldPosition(pos);
+
+    spaceShipRef.current.position.set(pos.x + dir.x * 1, pos.y + dir.y * 1, pos.z + dir.z * 1);
 
     up.copy(camera.up).applyQuaternion(camera.quaternion);
     setCameraDirection(dir.toArray().map(d => d.toFixed(2)).join(', '));
