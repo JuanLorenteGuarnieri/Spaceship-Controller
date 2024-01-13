@@ -2,11 +2,14 @@ import { Suspense, useState, useEffect, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import Loader from '../components/Loader'
 import { Desk } from '../models/Desk'
-import { ContactShadows, Environment, Float, MapControls } from '@react-three/drei'
+import { useAnimations, ContactShadows, Environment, Float, MapControls, SpotLight } from '@react-three/drei'
 import CameraController from '../components/CameraController';
 import { RusticSpaceShip } from '../models/RusticSpaceShip';
-import { SpaceStation } from '../../SpaceStation';
-
+import { SpaceStation } from '../models/SpaceStation';
+import { Logo } from '../models/Logo';
+import { LogoGema } from '../models/LogoGema';
+import { Engine } from '../models/Engine';
+import { Engine2 } from '../models/Engine2';
 
 function Home() {
   const [cameraDirection, setCameraDirection] = useState("0, 0, 0");
@@ -14,6 +17,12 @@ function Home() {
   const spaceShipRef = useRef();
   const deskRef = useRef();
   const spaceStationRef = useRef();
+  const logoRef = useRef();
+  const logoGemaRef = useRef();
+  const engineRef = useRef();
+  const typeCamera = "3P";
+
+
 
 
   return (
@@ -29,9 +38,10 @@ function Home() {
       </div>*/}
 
       <Canvas className="w-full h-screen bg-transparent"
-        camera={{ near: 0.1, far: 10000 }}>
+        camera={{ far: 10000 }}>
 
-        <CameraController spaceShipRef={spaceShipRef} setCameraDirection={setCameraDirection} setCameraUp={setCameraUp} />
+        <CameraController spaceShipRef={spaceShipRef}
+          typeCamera={typeCamera} />
         <Environment
           background={true} // can be true, false or "only" (which only sets the background) (default: false)
           blur={0.00} // blur factor between 0 and 1 (default: 0, only works with three 0.146 and up)
@@ -61,11 +71,22 @@ function Home() {
         </Float> */}
         <SpaceStation ref={spaceStationRef} />
 
-        <RusticSpaceShip ref={spaceShipRef} />
+        <RusticSpaceShip position={[0, 2, 5]} ref={spaceShipRef} />
+        <Engine2 ref={engineRef} />
+
+        <directionalLight color={0xffffff} intensity={1} position={[0, 0, 1]} castShadow={true} />
 
 
-        {/* <SpaceShip modelRef={spaceShipRef} /> */}
+        <Logo ref={logoRef} />
+        {/* <Float
+          speed={6} // Animation speed, defaults to 1
+          rotationIntensity={0.5} // XYZ rotation intensity, defaults to 1
+          floatIntensity={1} // Up/down float intensity, works like a multiplier with floatingRange,defaults to 1
+          floatingRange={[-0.1, 0.0]} // Range of y-axis values the object will float within, defaults to [-0.1,0.1]
+        >
+          <LogoGema ref={logoGemaRef} />
 
+        </Float> */}
 
       </Canvas>
     </section>

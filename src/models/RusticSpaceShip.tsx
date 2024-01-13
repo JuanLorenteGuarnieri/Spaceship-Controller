@@ -45,8 +45,8 @@ type SpaceShipProps = JSX.IntrinsicElements['group'] & {
 
 export const RusticSpaceShip = forwardRef<Group, SpaceShipProps>((props, ref) => {
   const { nodes, materials } = useGLTF('/rusty_spaceship.glb') as GLTFResult
-  const position: [number, number, number] = [3.7, -1, 2];
-  const rotation: [number, number, number] = [0, -Math.PI, 0];
+  const position: [number, number, number] = [3.7, -3, 2];
+  const rotation: [number, number, number] = [-0.1, -Math.PI, 0];
   const scale = 0.1;
   return (
     <group ref={ref} {...props} scale={scale} dispose={null}>

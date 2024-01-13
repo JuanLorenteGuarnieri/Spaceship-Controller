@@ -3,7 +3,7 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 
-const CameraController = ({ setCameraDirection, setCameraUp, spaceShipRef }) => {
+const CameraController = ({ spaceShipRef, typeCamera }) => {
   const { camera } = useThree();
   const moveForward = useRef(false);
   const moveBackward = useRef(false);
@@ -13,30 +13,34 @@ const CameraController = ({ setCameraDirection, setCameraUp, spaceShipRef }) => 
   const currentMovementSpeed = useRef(0);
   const movementAcceleration = 0.005;
   const maxMovementSpeed = 1;
+  const zoomCamera = 4;
 
-  useFrame(() => {
+  useFrame((state, delta) => {
     // Ajustar la velocidad de rotación y movimiento
-    const delta = 0.1; // Factor de aceleración/desaceleración
-    rotationSpeed.x += (targetRotation.x - rotationSpeed.x) * delta;
-    rotationSpeed.y += (targetRotation.y - rotationSpeed.y) * delta;
-    rotationSpeed.z += (targetRotation.z - rotationSpeed.z) * delta;
+    const rotationAdjustment = delta * 2; // Ajuste de la velocidad de rotación
+
+    rotationSpeed.x += (targetRotation.x - rotationSpeed.x) * rotationAdjustment;
+    rotationSpeed.y += (targetRotation.y - rotationSpeed.y) * rotationAdjustment;
+    rotationSpeed.z += (targetRotation.z - rotationSpeed.z) * rotationAdjustment;
+
+
+    // Asegúrate de que el objeto 3D exista antes de intentar manipularlo
+
+    spaceShipRef.current.rotateX(rotationSpeed.x);
+    spaceShipRef.current.rotateY(rotationSpeed.y);
+    spaceShipRef.current.rotateZ(rotationSpeed.z);
 
 
     // Aplicar la rotación y el movimiento a la cámara
+    camera.rotation.x = spaceShipRef.current.rotation.x;
+    camera.rotation.y = spaceShipRef.current.rotation.y;
+    camera.rotation.z = spaceShipRef.current.rotation.z;
 
-    camera.rotateX(rotationSpeed.x);
-    camera.rotateY(rotationSpeed.y);
-    camera.rotateZ(rotationSpeed.z);
-    // Asegúrate de que el objeto 3D exista antes de intentar manipularlo
 
-    spaceShipRef.current.rotation.x = camera.rotation.x;
-    spaceShipRef.current.rotation.y = camera.rotation.y;
-    spaceShipRef.current.rotation.z = camera.rotation.z;
 
     // Actualizar la dirección y el arriba de la cámara
     const dir = new THREE.Vector3();
-    const up = new THREE.Vector3();
-    camera.getWorldDirection(dir);
+    spaceShipRef.current.getWorldDirection(dir);
 
     if (moveForward.current) {
       currentMovementSpeed.current = Math.min(currentMovementSpeed.current + movementAcceleration, maxMovementSpeed);
@@ -45,17 +49,22 @@ const CameraController = ({ setCameraDirection, setCameraUp, spaceShipRef }) => 
     } else {
       currentMovementSpeed.current *= 0.97; // Desacelerar
     }
-    camera.position.addScaledVector(dir, currentMovementSpeed.current);
-    camera.getWorldDirection(dir);
+    spaceShipRef.current.position.addScaledVector(dir, currentMovementSpeed.current);
+    spaceShipRef.current.getWorldDirection(dir);
     const pos = new THREE.Vector3();
-    camera.getWorldPosition(pos);
+    const up = camera.up;
+    spaceShipRef.current.getWorldPosition(pos);
 
-    spaceShipRef.current.position.set(pos.x + dir.x * 1, pos.y + dir.y * 1, pos.z + dir.z * 1);
 
-    up.copy(camera.up).applyQuaternion(camera.quaternion);
-    setCameraDirection(dir.toArray().map(d => d.toFixed(2)).join(', '));
-    setCameraUp(up.toArray().map(u => u.toFixed(2)).join(', '));
+    if (typeCamera == "1P") {
+      camera.position.set(pos.x + 0.02 - dir.x * (zoomCamera / 4), pos.y + 0.02 - dir.y * (zoomCamera / 4), pos.z + 0.02 - dir.z * (zoomCamera / 4));
+    } else if (typeCamera == "3P") {
+      camera.position.set(pos.x + 0.02 + dir.x * (zoomCamera / 4), pos.y + 0.02 + dir.y * (zoomCamera / 4), pos.z + 0.02 + dir.z * (zoomCamera / 4));
+
+    }
+
   });
+
 
   const handleKeyDown = (event) => {
     const rotationAmount = 0.02; // Velocidad de rotación base
@@ -78,10 +87,10 @@ const CameraController = ({ setCameraDirection, setCameraUp, spaceShipRef }) => 
       case 'e':
         setTargetRotation(r => ({ ...r, z: -rotationAmount }));
         break;
-      case ' ': // Mover hacia adelante
+      case 'Shift': // Mover hacia adelante
         moveForward.current = true;
         break;
-      case 'Shift': // Mover hacia atrás
+      case ' ': // Mover hacia atrás
         moveBackward.current = true;
         break;
     }
@@ -91,10 +100,10 @@ const CameraController = ({ setCameraDirection, setCameraUp, spaceShipRef }) => 
     setTargetRotation({ x: 0, y: 0, z: 0 });
 
     switch (event.key) {
-      case ' ':
+      case 'Shift':
         moveForward.current = false;
         break;
-      case 'Shift':
+      case ' ':
         moveBackward.current = false;
         break;
       default:
