@@ -1,15 +1,11 @@
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import Loader from '../components/Loader'
-import { Desk } from '../models/Desk'
 import { useAnimations, ContactShadows, Environment, Float, MapControls, SpotLight } from '@react-three/drei'
 import CameraController from '../components/CameraController';
-import { RusticSpaceShip } from '../models/RusticSpaceShip';
-import { SpaceStation } from '../models/SpaceStation';
-import { Logo } from '../models/Logo';
-import { LogoGema } from '../models/LogoGema';
-import { Engine } from '../models/Engine';
-import { Engine2 } from '../models/Engine2';
+import { RusticSpaceShip } from '../../public/models/RusticSpaceShip';
+import { SpaceStation } from '../../public/models/SpaceStation';
+import { Engine } from '../../public/models/Engine';
+import { Engine2 } from '../../public/models/Engine2';
 
 function Home() {
   const [cameraDirection, setCameraDirection] = useState("0, 0, 0");
@@ -53,40 +49,18 @@ function Home() {
             'front.png', // pz
             'back.png'   // nz
           ]}
-          path="/src/assets/bkg/lightblue/"
+          path="/Spaceship-Controller/bkg/lightblue/"
           preset={null}
           scene={undefined} // adds the ability to pass a custom THREE.Scene, can also be a ref
           encoding={undefined} // adds the ability to pass a custom THREE.TextureEncoding (default: THREE.sRGBEncoding for an array of files and THREE.LinearEncoding for a single texture)
         />
 
-
-        {/* <Float
-          speed={1} // Animation speed, defaults to 1
-          rotationIntensity={1} // XYZ rotation intensity, defaults to 1
-          floatIntensity={1} // Up/down float intensity, works like a multiplier with floatingRange,defaults to 1
-          floatingRange={[0, 0.5]} // Range of y-axis values the object will float within, defaults to [-0.1,0.1]
-        >
-          <Desk ref={deskRef} />
-
-        </Float> */}
         <SpaceStation ref={spaceStationRef} />
 
         <RusticSpaceShip position={[0, 2, 5]} ref={spaceShipRef} />
         <Engine2 ref={engineRef} />
 
         <directionalLight color={0xffffff} intensity={1} position={[0, 0, 1]} castShadow={true} />
-
-
-        <Logo ref={logoRef} />
-        {/* <Float
-          speed={6} // Animation speed, defaults to 1
-          rotationIntensity={0.5} // XYZ rotation intensity, defaults to 1
-          floatIntensity={1} // Up/down float intensity, works like a multiplier with floatingRange,defaults to 1
-          floatingRange={[-0.1, 0.0]} // Range of y-axis values the object will float within, defaults to [-0.1,0.1]
-        >
-          <LogoGema ref={logoGemaRef} />
-
-        </Float> */}
 
       </Canvas>
     </section>
