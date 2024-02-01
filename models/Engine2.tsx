@@ -24,35 +24,25 @@ type GLTFResult = GLTF & {
 type ContextType = Record<string, React.ForwardRefExoticComponent<JSX.IntrinsicElements['mesh']>>
 
 type EngineProps = JSX.IntrinsicElements['group'] & {
-  // Aquí puedes añadir cualquier otra prop personalizada si es necesario
+  scale: number;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  isForward: boolean;
 };
 
 
-export const Engine2 = forwardRef<Group, EngineProps>((props, ref) => {
+export const Engine2 = forwardRef<Group, EngineProps>(({ scale, position, rotation, isForward }, ref) => {
   const { nodes, materials } = useGLTF('models/engine2.glb') as GLTFResult
-  const position: [number, number, number] = [0, 0, 0];
-  const rotation: [number, number, number] = [0, 0, 0];
-  const scale = 1;
 
-  useEffect(() => {
-    // Ajustar la saturación de los materiales
-    Object.values(materials).forEach(material => {
-      if (material.isMeshStandardMaterial) {
-        const hsl = { h: 0, s: 0, l: 0 };
-        material.color.getHSL(hsl);
-        material.color.setHSL(hsl.h, 255, hsl.l); // Ajusta el segundo parámetro para cambiar la saturación
-      }
-    });
 
-    // Código para reproducir la animación...
-  }, [materials]);
+  const yellowMaterial = new THREE.MeshBasicMaterial({ color: 'yellow', opacity: 0.6, transparent: true });
+  const redMaterial = new THREE.MeshBasicMaterial({ color: 'red', opacity: 0.2, transparent: true });
+
 
   return (
-    <group ref={ref} {...props} rotation={rotation} scale={scale} position={position} dispose={null}>
-      <group rotation={[Math.PI / 2, 0, -0.15]}>
-        <mesh geometry={nodes.Object_4.geometry} material={materials['Plume1.003']} />
-        <mesh geometry={nodes.Object_6.geometry} material={materials['Plume2.003']} />
-      </group>
+    <group visible={isForward} ref={ref} rotation={rotation} scale={scale} position={position} dispose={null}>
+      <mesh geometry={nodes.Object_4.geometry} rotation={[Math.PI / 2, 0, -0.15]} material={redMaterial} />
+      <mesh geometry={nodes.Object_6.geometry} rotation={[Math.PI / 2, 0, -0.15]} material={yellowMaterial} />
     </group>
   )
 });

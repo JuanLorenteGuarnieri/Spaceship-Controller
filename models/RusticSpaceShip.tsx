@@ -8,11 +8,13 @@ Title: Rusty Spaceship
 */
 
 import * as THREE from 'three'
-import React, { forwardRef } from 'react'
+import React, { forwardRef, useEffect, useState } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { GroupProps } from '@react-three/fiber'
 import { GLTF } from 'three-stdlib'
 import { Group } from 'three';
+import { Engine2 } from './Engine2'
+import { Smoke } from './Smoke'
 
 
 type GLTFResult = GLTF & {
@@ -40,17 +42,47 @@ type GLTFResult = GLTF & {
 type ContextType = Record<string, React.ForwardRefExoticComponent<JSX.IntrinsicElements['mesh']>>
 
 type SpaceShipProps = JSX.IntrinsicElements['group'] & {
-  // Aquí puedes añadir cualquier otra prop personalizada si es necesario
+  isForward: boolean;
+  isLeft: boolean;
+  isRight: boolean;
+  isUp: boolean;
+  isDown: boolean;
+  isClockwise: boolean;
+  isCounterClockwise: boolean;
 };
 
-export const RusticSpaceShip = forwardRef<Group, SpaceShipProps>((props, ref) => {
-  const { nodes, materials } = useGLTF('models/rusty_spaceship.glb') as GLTFResult
+export const RusticSpaceShip = forwardRef<Group, SpaceShipProps>(({ isForward, isLeft, isRight, isUp, isDown, isClockwise, isCounterClockwise }, ref) => {
+  const { nodes, materials } = useGLTF('models/spaceship.glb') as GLTFResult
   const position: [number, number, number] = [3.7, -3, 2];
   const rotation: [number, number, number] = [-0.1, -Math.PI, 0];
   const scale = 0.1;
+  materials.spaceship_racer.side = THREE.DoubleSide;
+  materials.cockpit.side = THREE.DoubleSide;
+
+  // Definir la variable que oscila entre 0 y 2*Math.PI
+  const [oscillatingVariable, setOscillatingVariable] = useState(0);
+
+
+  useEffect(() => {
+    let frameId;
+
+    const animate = () => {
+      setOscillatingVariable(prev => (prev + 0.1) % (2 * Math.PI)); // Aumenta la variable y la mantiene en el rango [0, 2*Math.PI]
+      frameId = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      cancelAnimationFrame(frameId); // Limpiar el animation frame al desmontar
+    };
+  }, []);
+
   return (
-    <group ref={ref} {...props} scale={scale} dispose={null}>
-      <group scale={0.005} rotation={rotation} position={position}>
+    <group ref={ref} scale={scale} dispose={null}>
+      <Engine2 isForward={isForward} position={[0, -3, 5]} scale={0.7} rotation={[Math.PI / 2, oscillatingVariable * 10, 0]} />
+
+      <group scale={0.005} rotation={rotation} position={position} >
 
         <mesh geometry={nodes.Cube001_spaceship_racer_0.geometry} material={materials.spaceship_racer} position={[739.257, -64.815, 64.771]} />
         <mesh geometry={nodes.Cylinder002_spaceship_racer_0.geometry} material={materials.spaceship_racer} position={[739.691, -59.39, -553.376]} rotation={[Math.PI / 2, 0, 0]} />
@@ -65,10 +97,18 @@ export const RusticSpaceShip = forwardRef<Group, SpaceShipProps>((props, ref) =>
         <mesh geometry={nodes.Cube001_RPanel003_RExtr001_spaceship_racer_0.geometry} material={materials.spaceship_racer} position={[739.257, 0, 0]} />
         <mesh geometry={nodes.Cube005_cockpit_0.geometry} material={materials.cockpit} position={[739.446, 110.436, 307.179]} rotation={[0.087, 0, 0]} />
         <mesh geometry={nodes.Sphere_cockpit_0.geometry} material={materials.cockpit} position={[739.365, 145.689, 315.602]} rotation={[0.175, 0, 0]} />
-
       </group>
+      <Smoke cond={isDown || isCounterClockwise} position={[1.8, -4.5, 4.05]} scale={0.05} rotation={[0, oscillatingVariable * 6, -Math.PI / 2]} />
+      <Smoke cond={isDown || isClockwise} position={[-1.8, -4.5, 4.05]} scale={0.05} rotation={[0, oscillatingVariable * 6, -Math.PI / 2]} />
+
+      <Smoke cond={isUp || isCounterClockwise} position={[-1.85, -3, 3.85]} scale={0.05} rotation={[0, oscillatingVariable * 6, Math.PI / 2]} />
+      <Smoke cond={isUp || isClockwise} position={[1.85, -3, 3.85]} scale={0.05} rotation={[0, oscillatingVariable * 6, Math.PI / 2]} />
+
+      <Smoke cond={isRight} position={[-1.4, -3.75, 3.85]} scale={0.05} rotation={[oscillatingVariable * 6, 0, 0]} />
+      <Smoke cond={isLeft} position={[1.4, -3.75, 3.85]} scale={0.05} rotation={[oscillatingVariable * 6, Math.PI, 0]} />
+
     </group>
   )
 });
 
-useGLTF.preload('models/rusty_spaceship.glb')
+useGLTF.preload('models/spaceship.glb')
