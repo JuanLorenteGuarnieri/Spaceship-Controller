@@ -67,6 +67,7 @@ function Home() {
   createStarGate(new THREE.Vector3(0, 0, -400), 12, [0, 0, 0]);
 
   const currentStargate = stargates.find(stargate => stargate.orden === stargateCurrent);
+  const spaceStationGroup = new THREE.Group(); // Grupo para contener todos los cubos
 
   if (currentStargate) {  //añadir colosiones
     positions.forEach((position, index) => {
@@ -76,17 +77,80 @@ function Home() {
       if (rotations[index]) {
         cube.rotation.copy(rotations[index]);
       }
-      cube.geometry.computeBoundingBox();
-      cube.userData.obb = new OBB().fromBox3(cube.geometry.boundingBox);
       torusGroup.add(cube); // Añadir el cubo al grupo
     });
 
     torusGroup.rotation.set(...currentStargate.rotate); // Aplicar rotación al grupo
     torusGroup.position.copy(currentStargate.position);
     collisionObjects.push(torusGroup); // Añadir el grupo a la lista de objetos de colisión
-
   }
 
+  const positions2 = [
+    new THREE.Vector3(0.2, 23, 2.9),
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(-28, -3, 23),
+    new THREE.Vector3(28, 2.5, -23),
+    new THREE.Vector3(23, -3.8, 28),
+    new THREE.Vector3(-23, 3.4, -28),
+    new THREE.Vector3(0, 4.8, -36),
+    new THREE.Vector3(0, -4.8, 36),
+    new THREE.Vector3(36, -0, 0),
+    new THREE.Vector3(-36, -0, 0),
+    new THREE.Vector3(-0.1, -43, -5.9),
+    new THREE.Vector3(-0.1, -16.5, -2.9),
+    new THREE.Vector3(0.2, 12, 1.7),
+
+  ];
+
+  const rotations2 = [
+    new THREE.Euler(0.115, 0.00, 0.00),
+    new THREE.Euler(0.15, 1, 0),
+    new THREE.Euler(0.15, 0.7, 0),
+    new THREE.Euler(0.15, 0.7, 0),
+    new THREE.Euler(0.15, 0.7, 0),
+    new THREE.Euler(0.15, 0.7, 0),
+    new THREE.Euler(0.15, 0.7, 0),
+    new THREE.Euler(0.15, -0.1, 0),
+    new THREE.Euler(0.15, -0.1, 0),
+    new THREE.Euler(0.15, -0.1, 0),
+    new THREE.Euler(0.15, -0.1, 0),
+    new THREE.Euler(0.115, 0.00, 0.00),
+    new THREE.Euler(0.115, -0.5, 0.00),
+    new THREE.Euler(0.115, 0.00, 0.00),
+  ];
+
+  const scales2 = [
+    new THREE.Vector3(10, 200, 10),
+    new THREE.Vector3(120, 80, 120),
+    new THREE.Vector3(250, 30, 250),
+    new THREE.Vector3(50, 7, 200),
+    new THREE.Vector3(50, 7, 200),
+    new THREE.Vector3(200, 7, 50),
+    new THREE.Vector3(200, 7, 50),
+    new THREE.Vector3(200, 7, 50),
+    new THREE.Vector3(200, 7, 50),
+    new THREE.Vector3(50, 7, 200),
+    new THREE.Vector3(50, 7, 200),
+    new THREE.Vector3(10, 460, 10),
+    new THREE.Vector3(45, 150, 45),
+    new THREE.Vector3(30, 45, 30),
+  ];
+
+
+  positions2.forEach((position, index) => {
+    const cubeGeometry = new THREE.BoxGeometry(scales2[index].x, scales2[index].y, scales2[index].z);
+    const cube = new THREE.Mesh(cubeGeometry, materialColision);
+    cube.position.copy(position.multiplyScalar(currentStargate.scale));
+    if (rotations2[index]) {
+      cube.rotation.copy(rotations2[index]);
+    }
+    spaceStationGroup.add(cube); // Añadir el cubo al grupo
+  });
+
+  //spaceStationGroup.rotation.set(new THREE.Vector3(0, -Math.PI, 0)); // Aplicar rotación al grupo
+  spaceStationGroup.position.copy(new THREE.Vector3(0, -10, -800));
+  collisionObjects.push(spaceStationGroup); // Añadir el grupo a la lista de objetos de colisión
 
 
   return (
@@ -104,17 +168,13 @@ function Home() {
       <Canvas className="w-full h-screen bg-transparent"
         camera={{ far: 10000 }}>
 
-
-
-
-
         {collisionObjects.map((obj, index) => (
           <primitive key={index} object={obj} />
         ))}
 
         <CameraController spaceShipRef={spaceShipRef} collisionObjects={collisionObjects} nextGate={nextGate} nMax={stargates.length}
           puntoControlRef={puntoControlRef} typeCamera={typeCamera} setIsForward={setIsForward} setIsRight={setIsRight} setIsLeft={setIsLeft}
-          setIsUp={setIsUp} setIsDown={setIsDown} setIsClockwise={setIsClockwise} setIsCounterClockwise={setIsCounterClockwise}
+          setIsUp={setIsUp} setIsDown={setIsDown} setIsClockwise={setIsClockwise} setIsCounterClockwise={setIsCounterClockwise} isForward={isForward}
           isLeft={isLeft} isRight={isRight} isUp={isUp} isDown={isDown} isClockwise={isClockwise} isCounterClockwise={isCounterClockwise} />
         <Environment
           background={true} // can be true, false or "only" (which only sets the background) (default: false)
@@ -133,7 +193,7 @@ function Home() {
           encoding={undefined} // adds the ability to pass a custom THREE.TextureEncoding (default: THREE.sRGBEncoding for an array of files and THREE.LinearEncoding for a single texture)
         />
         <Bvh firstHitOnly>
-          <SpaceStation ref={spaceStationRef} />
+          <SpaceStation ref={spaceStationRef} scale={30} position={[0, -10, -800]} rotation={[0, -Math.PI, 0]} />
 
           <RusticSpaceShip position={[0, 2, 5]} ref={spaceShipRef} isForward={isForward}
             isLeft={isLeft} isRight={isRight} isUp={isUp} isDown={isDown} isClockwise={isClockwise} isCounterClockwise={isCounterClockwise} />
@@ -157,15 +217,6 @@ function Home() {
             />
           )}
 
-          {/* {stargates.map((stargate, index) => (
-            <Stargate
-              key={index}
-              position={stargate.position}
-              scale={stargate.scale}
-              rotation={stargate.rotate}
-              isEmissive={stargate.orden == stargateCurrent}
-            />
-          ))} */}
         </Bvh>
 
 

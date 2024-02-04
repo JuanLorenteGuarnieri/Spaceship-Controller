@@ -3,11 +3,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OBB } from '../utils/OBB.js';
+import EngineSoundController from './EngineSoundController.jsx';
 
 
 
 const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate, puntoControlRef, nMax, setIsForward,
-  setIsRight, setIsLeft, setIsUp, setIsDown, setIsClockwise, setIsCounterClockwise,
+  setIsRight, setIsLeft, setIsUp, setIsDown, setIsClockwise, setIsCounterClockwise, isForward,
   isLeft, isRight, isUp, isDown, isClockwise, isCounterClockwise }) => {
 
 
@@ -17,7 +18,7 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
   const [rotationSpeed] = useState({ x: 0, y: 0, z: 0 });
   const [targetRotation, setTargetRotation] = useState({ x: 0, y: 0, z: 0 });
 
-  const currentMovementSpeed = useRef(0);
+  const [currentMovementSpeed, setCurrentMovementSpeed] = useState(0);
   const movementAcceleration = 0.003;
   const maxMovementSpeed = 0.4;
   const zoomCamera = 5;
@@ -76,27 +77,7 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
 
   const lastSafePosition = useRef(new THREE.Vector3());
 
-  function update(delta) {
-
-    if (isDown) {
-      setTargetRotation(r => ({ ...r, x: -1.5 * delta }));
-    } else if (isUp) {
-      setTargetRotation(r => ({ ...r, x: 1.5 * delta }));
-    }
-    if (isLeft) {
-      setTargetRotation(r => ({ ...r, y: 1.5 * delta }));
-    } else if (isRight) {
-      setTargetRotation(r => ({ ...r, y: -1.5 * delta }));
-    }
-    if (isClockwise) {
-      setTargetRotation(r => ({ ...r, z: -1.5 * delta }));
-    } else if (isCounterClockwise) {
-      setTargetRotation(r => ({ ...r, z: 1.5 * delta }));
-    }
-  }
-
   useFrame((state, delta) => {
-    update(delta);
     // Ajustar la velocidad de rotación y movimiento
     const rotationAdjustment = delta * 2; // Ajuste de la velocidad de rotación
 
@@ -121,36 +102,23 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
     spaceShipRef.current.getWorldDirection(dir);
 
     // Calcular la próxima posición propuesta
-    const nextPosition = dir.clone().multiplyScalar(currentMovementSpeed.current);
+    const nextPosition = dir.clone().multiplyScalar(currentMovementSpeed);
 
     const objCol = detectCollision(nextPosition);
 
-    // Chequear colisiones antes de mover la nave espacial
     if (objCol == null) {
       lastSafePosition.current.copy(spaceShipRef.current.position);
-    } else {
-      //console.log("CHOQUE!!");
-    }
 
-    // Actualizar la posición si no hay colisión
-    if (objCol == null) {
-      spaceShipRef.current.position.addScaledVector(dir, currentMovementSpeed.current);
-    } else {
-      // En caso de colisión, revertir a la última posición segura
-      spaceShipRef.current.position.copy(lastSafePosition.current);
-      currentMovementSpeed.current = 0; // Opcional: detener el movimiento
-    }
+      spaceShipRef.current.position.addScaledVector(dir, currentMovementSpeed);
 
-    // Actualizar la dirección y el arriba de la cámara
-    if (objCol == null) {
       if (moveForward.current) {
-        currentMovementSpeed.current = Math.min(currentMovementSpeed.current + movementAcceleration, maxMovementSpeed);
+        setCurrentMovementSpeed(Math.min(currentMovementSpeed + movementAcceleration, maxMovementSpeed));
       } else if (moveBackward.current) {
-        currentMovementSpeed.current = Math.max(currentMovementSpeed.current - movementAcceleration, -maxMovementSpeed);
+        setCurrentMovementSpeed(Math.max(currentMovementSpeed - movementAcceleration, -maxMovementSpeed));
       } else {
-        currentMovementSpeed.current *= 0.97; // Desacelerar
+        setCurrentMovementSpeed(currentMovementSpeed * 0.97); // Desacelerar
       }
-      spaceShipRef.current.position.addScaledVector(dir, currentMovementSpeed.current);
+      spaceShipRef.current.position.addScaledVector(dir, currentMovementSpeed);
 
     } else {
       // Calcular el vector desde la nave al objeto de colisión
@@ -169,19 +137,14 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
       // Si el ángulo está cerca de 90 grados, permite el movimiento
       if (Math.abs(angle) > 90) {
         // Permite moverse
-        //console.log("me muevo");
-
-        currentMovementSpeed.current = Math.min(currentMovementSpeed.current + movementAcceleration, maxMovementSpeed);
-        spaceShipRef.current.position.addScaledVector(dir, currentMovementSpeed.current);
-
+        setCurrentMovementSpeed(Math.min(currentMovementSpeed + movementAcceleration, maxMovementSpeed));
+        spaceShipRef.current.position.addScaledVector(dir, currentMovementSpeed);
         lastSafePosition.current.copy(spaceShipRef.current.position);
 
       } else {
-        //console.log("no lo hago");
-
         // En caso de colisión no permitida, revertir a la última posición segura
         spaceShipRef.current.position.copy(lastSafePosition.current);
-        currentMovementSpeed.current = 0; // Parar
+        setCurrentMovementSpeed(0);
       }
     }
 
@@ -196,9 +159,9 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
     spaceShipRef.current.getWorldPosition(pos);
 
     if (typeCamera == "1P") {
-      camera.position.set(pos.x + 0.02 - dir.x * ((zoomCamera + currentMovementSpeed.current * 3) / 4), pos.y + 0.02 - dir.y * ((zoomCamera + currentMovementSpeed.current * 2) / 4), pos.z + 0.02 - dir.z * ((zoomCamera + currentMovementSpeed.current * 3) / 4));
+      camera.position.set(pos.x + 0.02 - dir.x * ((zoomCamera + currentMovementSpeed * 3) / 4), pos.y + 0.02 - dir.y * ((zoomCamera + currentMovementSpeed * 2) / 4), pos.z + 0.02 - dir.z * ((zoomCamera + currentMovementSpeed * 3) / 4));
     } else if (typeCamera == "3P") {
-      camera.position.set(pos.x + 0.02 + dir.x * ((zoomCamera + currentMovementSpeed.current * 3) / 4), pos.y + 0.02 + dir.y * ((zoomCamera + currentMovementSpeed.current * 2) / 4), pos.z + 0.02 + dir.z * ((zoomCamera + currentMovementSpeed.current * 2.5) / 4));
+      camera.position.set(pos.x + 0.02 + dir.x * ((zoomCamera + currentMovementSpeed * 3) / 4), pos.y + 0.02 + dir.y * ((zoomCamera + currentMovementSpeed * 2) / 4), pos.z + 0.02 + dir.z * ((zoomCamera + currentMovementSpeed * 2.5) / 4));
     }
   });
 
@@ -260,6 +223,28 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
     }
   };
 
+  function updateRotation(delta) {
+    if (isDown) {
+      setTargetRotation(r => ({ ...r, x: -1.5 * delta }));
+    } else if (isUp) {
+      setTargetRotation(r => ({ ...r, x: 1.5 * delta }));
+    }
+    if (isLeft) {
+      setTargetRotation(r => ({ ...r, y: 1.5 * delta }));
+    } else if (isRight) {
+      setTargetRotation(r => ({ ...r, y: -1.5 * delta }));
+    }
+    if (isClockwise) {
+      setTargetRotation(r => ({ ...r, z: -1.5 * delta }));
+    } else if (isCounterClockwise) {
+      setTargetRotation(r => ({ ...r, z: 1.5 * delta }));
+    }
+  }
+
+  useEffect(() => {
+    updateRotation(0.02);
+  }, [isLeft, isRight, isUp, isDown, isClockwise, isCounterClockwise]);
+
   useEffect(() => {  //add listeners
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
@@ -269,7 +254,13 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
     };
   });
 
-  return null;
+  return (
+    <EngineSoundController
+      isForward={isForward}
+      currentMovementSpeed={currentMovementSpeed}
+      maxMovementSpeed={maxMovementSpeed}
+    />
+  );
 };
 
 export default CameraController;

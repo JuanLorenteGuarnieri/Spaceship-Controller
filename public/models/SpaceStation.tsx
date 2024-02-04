@@ -63,16 +63,15 @@ type GLTFResult = GLTF & {
 type ContextType = Record<string, React.ForwardRefExoticComponent<JSX.IntrinsicElements['mesh']>>
 
 type SpaceStationProps = JSX.IntrinsicElements['group'] & {
-  // Aquí puedes añadir cualquier otra prop personalizada si es necesario
+  scale: number;
+  position: [number, number, number];
+  rotation: [number, number, number];
 };
 
-export const SpaceStation = forwardRef<Group, SpaceStationProps>((props, ref) => {
+export const SpaceStation = forwardRef<Group, SpaceStationProps>(({ scale, position, rotation }, ref) => {
   const { nodes, materials } = useGLTF('models/space_station.glb') as GLTFResult
-  const position: [number, number, number] = [0, -10, -800];
-  const rotation: [number, number, number] = [0, -Math.PI, 0];
-  const scale = 30;
   return (
-    <group ref={ref} {...props} scale={scale} position={position} dispose={null}>
+    <group ref={ref} scale={scale} position={position} dispose={null}>
       <group rotation={[Math.PI / 2 - 1.446, -0.1, -0.003]} scale={0.01191}>
         <mesh geometry={nodes.spacestation001_low_Main_0.geometry} material={materials.Main} rotation={[-Math.PI / 2, 0, 0]} scale={100} />
         <mesh geometry={nodes.spacestation002_low_Main_0.geometry} material={materials.Main} rotation={[-Math.PI / 2, 0, 0]} scale={100} />
