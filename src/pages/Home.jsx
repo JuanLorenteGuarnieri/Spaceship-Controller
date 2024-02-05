@@ -30,35 +30,24 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
 
   // Función para detectar colisiones y devolver el objeto de colisión
   const detectCollision = (nextPosition) => {
-    // Crear un nuevo Box3 para calcular el boundingBox del grupo
-
     const shipBoundingBox = new THREE.Box3().setFromObject(spaceShipRef.current);
     const nextBoundingBox = shipBoundingBox.clone().translate(nextPosition);
 
     for (let i = 0; i < collisionObjects.length; i++) {
       const obj = collisionObjects[i];
-
-      // Cálculo similar para los objetos en collisionObjects
       if (obj instanceof THREE.Mesh) {
         obj.geometry.computeBoundingBox();
-
         obj.userData.obb = new OBB().fromBox3(obj.geometry.boundingBox);
         obj.userData.obb.applyMatrix4(obj.matrixWorld);
-
-        // Comprobar colisión
-        if (obj.userData.obb.intersectsBox3(nextBoundingBox)) {
+        if (obj.userData.obb.intersectsBox3(nextBoundingBox))
           return obj;
-        }
       } else if (obj instanceof THREE.Group) {
         for (let child of obj.children) {
           child.geometry.computeBoundingBox();
           child.userData.obb = new OBB().fromBox3(child.geometry.boundingBox);
           child.userData.obb.applyMatrix4(child.matrixWorld);
-
-          // Comprobar colisión
-          if (child.userData.obb.intersectsBox3(nextBoundingBox)) {
+          if (child.userData.obb.intersectsBox3(nextBoundingBox))
             return child;
-          }
         }
       }
     }
@@ -87,15 +76,10 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
     rotationSpeed.y += (targetRotation.y - rotationSpeed.y) * rotationAdjustment;
     rotationSpeed.z += (targetRotation.z - rotationSpeed.z) * rotationAdjustment;
 
-
-    // Asegúrate de que el objeto 3D exista antes de intentar manipularlo
-
     spaceShipRef.current.rotateX(rotationSpeed.x);
     spaceShipRef.current.rotateY(rotationSpeed.y);
     spaceShipRef.current.rotateZ(rotationSpeed.z);
 
-
-    // Aplicar la rotación y el movimiento a la cámara
     camera.rotation.x = spaceShipRef.current.rotation.x;
     camera.rotation.y = spaceShipRef.current.rotation.y;
     camera.rotation.z = spaceShipRef.current.rotation.z;
@@ -105,13 +89,11 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
 
     // Calcular la próxima posición propuesta
     const nextPosition = dir.clone().multiplyScalar(currentMovementSpeed);
-
     const objCol = detectCollision(nextPosition);
-
     if (objCol == null) {
       lastSafePosition.current.copy(spaceShipRef.current.position);
 
-      spaceShipRef.current.position.addScaledVector(dir, currentMovementSpeed);
+      spaceShipRef.current.position.addScaledVector(dir, currentMovementSpeed * 2);
 
       if (moveForward.current) {
         setCurrentMovementSpeed(Math.min(currentMovementSpeed + movementAcceleration, maxMovementSpeed));
@@ -120,7 +102,6 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
       } else {
         setCurrentMovementSpeed(currentMovementSpeed * 0.97); // Desacelerar
       }
-      spaceShipRef.current.position.addScaledVector(dir, currentMovementSpeed);
 
     } else {
       console.log("CHOCASTE con");
@@ -335,9 +316,9 @@ function Home() {
       orden: stargates.length + 1
     });
   }
-  // createStarGate(new THREE.Vector3(0, 0, -45), 15, [0, 0, 0]);
-  // createStarGate(new THREE.Vector3(0, 0, -115), 13, [0, 0, 0]);
-  // createStarGate(new THREE.Vector3(0, 0, -205), 11, [0, 0, 0]);
+  createStarGate(new THREE.Vector3(0, 0, -45), 15, [0, 0, 0]);
+  createStarGate(new THREE.Vector3(0, 0, -115), 13, [0, 0, 0]);
+  createStarGate(new THREE.Vector3(0, 0, -205), 11, [0, 0, 0]);
   createStarGate(new THREE.Vector3(0, 0, -302), 9, [0, 0, 0]);
   createStarGate(new THREE.Vector3(0, 0, -370), 7, [0, 0, 0]);
   createStarGate(new THREE.Vector3(0, 0, -450), 5, [0, 0, 0]);
@@ -362,37 +343,45 @@ function Home() {
 
   const spaceStationGroup = new THREE.Group(); // Grupo para contener todos los cubos
 
-  if (stargates[stargateCurrent]) {  //añadir colosiones
-    positions.forEach((position, index) => {
-      const cubeGeometry = new THREE.BoxGeometry(stargates[stargateCurrent].scale / 4, stargates[stargateCurrent].scale, stargates[stargateCurrent].scale / 8);
-      const cube = new THREE.Mesh(cubeGeometry, materialColision);
-      cube.position.copy(position.multiplyScalar(stargates[stargateCurrent].scale));
-      if (rotations[index]) {
-        cube.rotation.copy(rotations[index]);
-      }
-      torusGroup.add(cube); // Añadir el cubo al grupo
-    });
+  if (stargates[stargateCurrent] && spaceShipRef.current && spaceShipRef.current.position.z < -30) {  //añadir colosiones
+    // Calcular la distancia entre la nave espacial y el stargate actual
+    const distanceToStargate = spaceShipRef.current.position.distanceTo(stargates[stargateCurrent].position);
 
-    torusGroup.rotation.set(...stargates[stargateCurrent].rotate); // Aplicar rotación al grupo
-    torusGroup.position.copy(stargates[stargateCurrent].position);
-    collisionObjects.push(torusGroup); // Añadir el grupo a la lista de objetos de colisión
+    // Comprobar si la distancia es menor o igual a dos veces el scale del stargate actual
+    if (distanceToStargate <= 2 * stargates[stargateCurrent].scale) {
+      positions.forEach((position, index) => {
+        const cubeGeometry = new THREE.BoxGeometry(stargates[stargateCurrent].scale / 4, stargates[stargateCurrent].scale, stargates[stargateCurrent].scale / 8);
+        const cube = new THREE.Mesh(cubeGeometry, materialColision);
+        cube.name = "Stargate Collision part: " + index;
+        cube.position.copy(position.multiplyScalar(stargates[stargateCurrent].scale));
+        if (rotations[index]) {
+          cube.rotation.copy(rotations[index]);
+        }
+        torusGroup.add(cube); // Añadir el cubo al grupo
+      });
+
+      torusGroup.rotation.set(...stargates[stargateCurrent].rotate); // Aplicar rotación al grupo
+      torusGroup.position.copy(stargates[stargateCurrent].position);
+      collisionObjects.push(torusGroup); // Añadir el grupo a la lista de objetos de colisión
+
+    }
   }
 
   const positions2 = [
-    new THREE.Vector3(0.2, 23, 2.9),
-    new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(-28, -3, 23),
-    new THREE.Vector3(28, 2.5, -23),
-    new THREE.Vector3(23, -3.8, 28),
-    new THREE.Vector3(-23, 3.4, -28),
-    new THREE.Vector3(0, 4.8, -36),
-    new THREE.Vector3(0, -4.8, 36),
-    new THREE.Vector3(36, -0, 0),
-    new THREE.Vector3(-36, -0, 0),
-    new THREE.Vector3(-0.1, -43, -5.9),
-    new THREE.Vector3(-0.1, -16.5, -2.9),
-    new THREE.Vector3(0.2, 12, 1.7),
+    new THREE.Vector3(1, 105, -785.5),
+    new THREE.Vector3(0, -10, -800),
+    new THREE.Vector3(0, -10, -800),
+    new THREE.Vector3(-140, -25, -685),
+    new THREE.Vector3(140, 2.5, -915),
+    new THREE.Vector3(115, -29, -660),
+    new THREE.Vector3(-115, 7, -940),
+    new THREE.Vector3(0, 14, -980),
+    new THREE.Vector3(0, -34, -620),
+    new THREE.Vector3(180, -10, -800),
+    new THREE.Vector3(-180, -10, -800),
+    new THREE.Vector3(-0.5, -225, -829.5),
+    new THREE.Vector3(-0.5, -92.5, -814.5),
+    new THREE.Vector3(1, 50, -791.5),
   ];
 
   const rotations2 = [
@@ -429,22 +418,20 @@ function Home() {
     new THREE.Vector3(25, 45, 25),
   ];
 
+  if (spaceShipRef.current && spaceShipRef.current.position.z < -500) {
+    positions2.forEach((position, index) => {
+      const cubeGeometry = new THREE.BoxGeometry(scales2[index].x, scales2[index].y, scales2[index].z);
+      const cube = new THREE.Mesh(cubeGeometry, materialColision);
+      cube.name = "SpaceStation Collision part: " + index;
+      cube.position.copy(position);
+      if (rotations2[index]) {
+        cube.rotation.copy(rotations2[index]);
+      }
+      spaceStationGroup.add(cube); // Añadir el cubo al grupo
+    });
+    collisionObjects.push(spaceStationGroup); // Añadir el grupo a la lista de objetos de colisión
 
-  positions2.forEach((position, index) => {
-    const cubeGeometry = new THREE.BoxGeometry(scales2[index].x, scales2[index].y, scales2[index].z);
-    const cube = new THREE.Mesh(cubeGeometry, materialColision);
-    cube.position.copy(new THREE.Vector3(0, -10, -800));
-
-    cube.position.copy(position.multiplyScalar(5));
-    if (rotations2[index]) {
-      cube.rotation.copy(rotations2[index]);
-    }
-    spaceStationGroup.add(cube); // Añadir el cubo al grupo
-  });
-
-  //spaceStationGroup.rotation.set(new THREE.Vector3(0, -Math.PI, 0)); // Aplicar rotación al grupo
-  spaceStationGroup.position.copy(new THREE.Vector3(0, -10, -800));
-  collisionObjects.push(spaceStationGroup); // Añadir el grupo a la lista de objetos de colisión
+  }
 
   // Efecto para manejar el contador
   useEffect(() => {
@@ -510,7 +497,7 @@ function Home() {
         <Bvh firstHitOnly>
           <SpaceStation ref={spaceStationRef} scale={30} position={[0, -10, -800]} rotation={[0, -Math.PI, 0]} />
 
-          <RusticSpaceShip position={[0, 2, 5]} ref={spaceShipRef} isForward={isForward}
+          <RusticSpaceShip position={[0, 1000, 500]} ref={spaceShipRef} isForward={isForward}
             isLeft={isLeft} isRight={isRight} isUp={isUp} isDown={isDown} isClockwise={isClockwise} isCounterClockwise={isCounterClockwise} />
 
           {stargates[stargateCurrent] && (
@@ -528,7 +515,7 @@ function Home() {
               position={stargates[stargateCurrent].position}
               scale={stargates[stargateCurrent].scale / 2.99}
               rotation={stargates[stargateCurrent].rotate}
-              isEmissive={stargates[stargateCurrent].orden == stargateCurrent}
+              isEmissive={true}
             />
           )}
 
