@@ -1,21 +1,19 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Environment, Bvh, Circle, Html } from '@react-three/drei'
+import { Environment, Bvh, Circle, useProgress } from '@react-three/drei'
 import { RusticSpaceShip } from '../../public/models/RusticSpaceShip';
 import { SpaceStation } from '../../public/models/SpaceStation';
 import * as THREE from 'three'
 import { Stargate } from '../../public/models/Stargate';
 import CameraController from '../components/CameraController';
+import Loader from '../components/Loader';
 
 /*
-  TODO: Cambiar caja colision de la nave a OBB porque sino genera una caja segun lo que ocupa globalmente y no segun lo localmente
-        A lo mejor es buena idea generar un mesh cubo en la nave para siempre y que este se utilice para colisiones
-
   TODO: HUD
 
-  TODO: Loader (Logo)
+  TODO: Title
 
-  TODO: 
+  TODO: Share option
 */
 
 
@@ -25,11 +23,17 @@ function Home() {
   const puntoControlRef = useRef();
   const typeCamera = "3P";
 
+  const [showResult, setShowResult] = useState(false);
+
+
   const [currentMovementSpeed, setCurrentMovementSpeed] = useState(0);
+
+  const [targetRotation, setTargetRotation] = useState({ x: 0, y: 0, z: 0 });
 
 
   const [stargateCurrent, setStargateCurrent] = useState(0);
   const [isForward, setIsForward] = useState(false);
+  const [isBackward, setIsBackward] = useState(false);
   const [isUp, setIsUp] = useState(false);
   const [isDown, setIsDown] = useState(false);
   const [isLeft, setIsLeft] = useState(false);
@@ -50,18 +54,18 @@ function Home() {
       const nextIndex = current >= nMax - 1 ? 0 : current + 1;
 
       if (nextIndex === 1) {
-        setCounter(0); // Reiniciar contador
         setIsCounting(true); // Iniciar el contador
       }
       // Detener contador si current es igual a nMax
       else if (nextIndex === 0) {
         setIsCounting(false); // Detener el contador
+        setShowResult(true);
       }
       return nextIndex;
     });
   }
 
-  const materialColision = new THREE.MeshBasicMaterial({ color: 0xffffff, opacity: 0.0, transparent: true });
+  const materialColision = new THREE.MeshBasicMaterial({ visible: false, color: 0xffffff, opacity: 0.0, transparent: true });
   const materialStargateCurrent = new THREE.MeshBasicMaterial({ color: 0x0000ff, opacity: 0.15, transparent: true });
   materialStargateCurrent.side = THREE.DoubleSide;
 
@@ -169,7 +173,7 @@ function Home() {
   ];
 
   if (spaceShipRef.current) {
-    if (stargates[stargateCurrent] && spaceShipRef.current.position.z < -30) {  //añadir colosiones gate
+    if (stargates[stargateCurrent] && spaceShipRef.current.position.z < -25) {  //añadir colosiones gate
 
       // Calcular la distancia entre la nave espacial y el stargate actual
       const distanceToStargate = spaceShipRef.current.position.distanceTo(stargates[stargateCurrent].position);
@@ -177,7 +181,7 @@ function Home() {
       // Comprobar si la distancia es menor o igual a dos veces el scale del stargate actual
       if (distanceToStargate <= 2 * stargates[stargateCurrent].scale) {
         positions.forEach((position, index) => {
-          const cubeGeometry = new THREE.BoxGeometry(stargates[stargateCurrent].scale / 4, stargates[stargateCurrent].scale, stargates[stargateCurrent].scale / 8);
+          const cubeGeometry = new THREE.BoxGeometry(stargates[stargateCurrent].scale / 4, stargates[stargateCurrent].scale, stargates[stargateCurrent].scale / 6);
           const cube = new THREE.Mesh(cubeGeometry, materialColision);
           cube.name = "Stargate Collision part: " + index;
           cube.position.copy(position.multiplyScalar(stargates[stargateCurrent].scale));
@@ -248,213 +252,365 @@ function Home() {
   const [keyConfig, setKeyConfig] = useState({
     up: 'W',
     left: 'A',
-    right: 'S',
-    down: 'D',
+    right: 'D',
+    down: 'S',
+    counterClockwise: 'Q',
+    clockwise: 'E',
+    forward: ' ',
+    backward: 'SHIFT',
+  });
+
+  const [keyConfigPreview, setKeyConfigPreview] = useState({
+    up: 'W',
+    left: 'A',
+    right: 'D',
+    down: 'S',
     counterClockwise: 'Q',
     clockwise: 'E',
     forward: 'SPACE',
     backward: 'SHIFT',
   });
   // Estado para saber cuál tecla está siendo configurada
-  const [currentKeySetting, setCurrentKeySetting] = useState('');
+  const [currentKeySettingSelected, setCurrentKeySettingSelected] = useState('');
+
+  const handleClick = (keyType) => {
+    setCurrentKeySettingSelected(current => {
+      if (currentKeySettingSelected != '') {
+        setKeyConfigPreview(prevState => ({
+          ...prevState,
+          [current]: keyConfig[current] == ' ' ? 'SPACE' : keyConfig[current]
+        }));
+      }
+      return keyType;
+    });
+    setKeyConfigPreview(prevState => ({
+      ...prevState,
+      [keyType]: '...'
+    }));
+  };
+
 
   const handleKeyDown = (event) => {
     if (event.key === ' ') {
       event.preventDefault();
     }
-    let keyName = event.key === ' ' ? 'ESPACIO' : event.key.toUpperCase();
+    if (isOpen) {
+      // Verificar si la tecla no está asignada a ningún otro elemento de keyConfig
+      const isKeyNameAssigned = Object.values(keyConfig).some(value => value === event.key.toUpperCase());
 
-    // Actualiza la tecla específica en el objeto de estado
-    setKeyConfig(prevState => ({
-      ...prevState,
-      [currentKeySetting]: keyName,
-    }));
-
-    // Detiene la escucha de eventos de teclado y resetea el configurador actual
-    setCurrentKeySetting('');
-    window.removeEventListener('keydown', handleKeyDown);
+      if (currentKeySettingSelected != '' && (!isKeyNameAssigned || keyConfig[currentKeySettingSelected] == event.key.toUpperCase())) { //comprobar si la tecla pulsada ya esta asignada en keyConfig
+        setKeyConfigPreview(prevState => ({
+          ...prevState,
+          [currentKeySettingSelected]: event.key === ' ' ? 'SPACE' : event.key.toUpperCase(),
+        }));
+        setKeyConfig(prevState => ({
+          ...prevState,
+          [currentKeySettingSelected]: event.key.toUpperCase(),
+        }));
+        // Detiene la escucha de eventos de teclado y resetea el configurador actual
+        setCurrentKeySettingSelected('');
+      }
+    } else {
+      if (!showResult) {
+        if (event.key.toUpperCase() == keyConfig.down) {
+          setIsDown(true);
+        }
+        if (event.key.toUpperCase() == keyConfig.up) {
+          setIsUp(true);
+        }
+        if (event.key.toUpperCase() == keyConfig.left) {
+          setIsLeft(true);
+        }
+        if (event.key.toUpperCase() == keyConfig.right) {
+          setIsRight(true);
+        }
+        if (event.key.toUpperCase() == keyConfig.clockwise) {
+          setIsClockwise(true);
+        }
+        if (event.key.toUpperCase() == keyConfig.counterClockwise) {
+          setIsCounterClockwise(true);
+        }
+        if (event.key.toUpperCase() == keyConfig.backward) {
+          setIsBackward(true);
+          setIsForward(false);
+        } else if (event.key.toUpperCase() == keyConfig.forward && !isBackward) {
+          setIsForward(true);
+        }
+      }
+    }
   };
 
-  const handleClick = (keyType) => {
-    // Configura cuál tecla se está actualizando y prepara para la entrada
-    setCurrentKeySetting(keyType);
-    setKeyConfig(prevState => ({
-      ...prevState,
-      [keyType]: '...'
-    }));
+  const handleKeyUp = (event) => {
+    setTargetRotation({ x: 0, y: 0, z: 0 });
+    if (event.key.toUpperCase() == keyConfig.down) {
+      setIsDown(false);
+    }
+    if (event.key.toUpperCase() == keyConfig.up) {
+      setIsUp(false);
+    }
+    if (event.key.toUpperCase() == keyConfig.left) {
+      setIsLeft(false);
+    }
+    if (event.key.toUpperCase() == keyConfig.right) {
+      setIsRight(false);
+    }
+    if (event.key.toUpperCase() == keyConfig.clockwise) {
+      setIsClockwise(false);
+    }
+    if (event.key.toUpperCase() == keyConfig.counterClockwise) {
+      setIsCounterClockwise(false);
+    }
+    if (event.key.toUpperCase() == keyConfig.backward) {
+      setIsBackward(false);
+    }
+    if (event.key.toUpperCase() == keyConfig.forward) {
+      setIsForward(false);
+    }
+  };
+
+
+  useEffect(() => {  //add listeners
     window.addEventListener('keydown', handleKeyDown);
-  };
-
-  useEffect(() => {
-    // Asegura que el listener se remueva cuando el componente se desmonte o cambie el configurador
+    window.addEventListener('keyup', handleKeyUp);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [currentKeySetting]); // Añade currentKeySetting a las dependencias para actualizar el listener adecuadamente
+  }, [currentKeySettingSelected, isOpen, showResult, isBackward]);
 
+
+  // ANIMATIONS
+  const [animationKey, setAnimationKey] = useState(0);
+  const [animationClass, setAnimationClass] = useState('fadeIn1'); // Inicializa con la animación inicial
+
+  const [isContentLoaded, setIsContentLoaded] = useState(false);
+  const [isAnimationDone, setIsAnimationDone] = useState(false);
+
+
+  const changeAnimationDone = () => {
+    setIsAnimationDone(true);
+  };
+
+  const { progress } = useProgress();
+
+  useEffect(() => {
+    // Actualiza el estado cuando el progreso es mayor que 95
+    if (progress > 95) {
+      setIsContentLoaded(true);
+    }
+  }, [progress]);
+
+
+  useEffect(() => { //RESET ANIMATION (when all loaded and intro finished)
+    if (isContentLoaded && isAnimationDone) {
+      setAnimationClass('fadeOutIn');
+      setAnimationKey(prevKey => prevKey + 1); // Incrementa la clave para reiniciar la animación
+    }
+  }, [isContentLoaded, isAnimationDone]);
 
   return (
-    <section className="w-full h-screen relative">
-      <div className='absolute top-28 left-0 right-0 z-10 flex items-center justify-center'>
-        <h1 className='sm:text-xl sm:leading-snug text-center neo-brutalism-blue py-4 px-8 text-white mx-5'>
-          <p> Tiempo: {counter.toFixed(2)}s</p>
-        </h1>
-      </div>
-      <div className='absolute top-50 left-0 right-0 z-10 flex items-center justify-center'>
-        <h1 className='sm:text-xl sm:leading-snug text-center neo-brutalism-blue py-4 px-8 text-white mx-5'>
-          <p> {stargateCurrent}/{stargates.length}</p>
-        </h1>
-      </div>
+    <section className="w-full h-screen relative" style={{ backgroundColor: 'black' }}>
+      {isAnimationDone &&
+        <div className='fadeIn1' style={{ backgroundColor: 'black' }}>
+          {showResult && (
+            <div style={{
+              height: '80%',
+              width: '70%',
+              top: '50%',
+              left: '50%',
+              borderRadius: '20px',
+              backgroundColor: 'rgba(43, 79, 151, 0.3)',
+              transform: 'translate(-50%, -50%)'
+            }} className="absolute bg-white py-1 z-50 flex flex-col justify-around items-center">
+              <div style={{ height: '1%' }} />
+              <h2 style={{ fontSize: 55 }} className="text-xl font-bold text-white">¡Complete!</h2>
+              <p style={{ fontSize: 35 }} className="text-white">Time: {counter.toFixed(2)} s</p>
 
-      <div className="absolute inset-0 z-10 flex items-center "
-        style={{ left: '1%' }}>
-
-        <button
-          className="relative h-12 w-9 text-white bg-blue-500 rounded-md focus:outline-none focus:outline-none"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          {isOpen && (
-            <svg xmlns="http://www.w3.org/2000/svg" width="27" height="27" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-              style={{
-                position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) scaleX(-1)'
-              }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-            </svg>
-          )}
-          {!isOpen && (
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-joystick" viewBox="0 0 16 16"
-              style={{
-                position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'
-              }}>
-              <path d="M10 2a2 2 0 0 1-1.5 1.937v5.087c.863.083 1.5.377 1.5.726 0 .414-.895.75-2 .75s-2-.336-2-.75c0-.35.637-.643 1.5-.726V3.937A2 2 0 1 1 10 2" />
-              <path d="M0 9.665v1.717a1 1 0 0 0 .553.894l6.553 3.277a2 2 0 0 0 1.788 0l6.553-3.277a1 1 0 0 0 .553-.894V9.665c0-.1-.06-.19-.152-.23L9.5 6.715v.993l5.227 2.178a.125.125 0 0 1 .001.23l-5.94 2.546a2 2 0 0 1-1.576 0l-5.94-2.546a.125.125 0 0 1 .001-.23L6.5 7.708l-.013-.988L.152 9.435a.25.25 0 0 0-.152.23" />
-            </svg>
-          )}
-        </button>
-        {isOpen && (
-          <div style={{ height: '50vh', width: '50vh', borderRadius: '20px', backgroundColor: 'rgba(43, 79, 151, 0.3)' }} className="absolute left-20 bg-white  py-1 z-50 flex flex-col justify-around items-center">
-            <div style={{ height: '5%' }} className="w-full" />
-            <div style={{ height: '70%', position: 'relative' }} className="w-80 ">
-              <svg xmlns="http://www.w3.org/2000/svg" width="55" height="55" fill="white" className="bi bi-dpad-fill" viewBox="0 0 16 16"
-                style={{
-                  position: 'absolute', top: '60%', left: '50%', transform: 'translate(-50%, -50%)'
-                }}>
-                <path d="M6.5 0A1.5 1.5 0 0 0 5 1.5v3a.5.5 0 0 1-.5.5h-3A1.5 1.5 0 0 0 0 6.5v3A1.5 1.5 0 0 0 1.5 11h3a.5.5 0 0 1 .5.5v3A1.5 1.5 0 0 0 6.5 16h3a1.5 1.5 0 0 0 1.5-1.5v-3a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 0 16 9.5v-3A1.5 1.5 0 0 0 14.5 5h-3a.5.5 0 0 1-.5-.5v-3A1.5 1.5 0 0 0 9.5 0zm1.288 2.34a.25.25 0 0 1 .424 0l.799 1.278A.25.25 0 0 1 8.799 4H7.201a.25.25 0 0 1-.212-.382zm0 11.32-.799-1.277A.25.25 0 0 1 7.201 12H8.8a.25.25 0 0 1 .212.383l-.799 1.278a.25.25 0 0 1-.424 0Zm-4.17-4.65-1.279-.798a.25.25 0 0 1 0-.424l1.279-.799A.25.25 0 0 1 4 7.201V8.8a.25.25 0 0 1-.382.212Zm10.043-.798-1.278.799A.25.25 0 0 1 12 8.799V7.2a.25.25 0 0 1 .383-.212l1.278.799a.25.25 0 0 1 0 .424Z" />
-              </svg>
-
-              <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-arrow-clockwise" viewBox="0 0 16 16"
-                style={{
-                  position: 'absolute', top: '30%', left: '83%', transform: 'translate(-50%, -50%)'
-                }}>
-                <path fillRule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z" />
-                <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
-              </svg>
-
-              <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-arrow-counterclockwise" viewBox="0 0 16 16"
-                style={{
-                  position: 'absolute', top: '30%', left: '17%', transform: 'translate(-50%, -50%)'
-                }}>
-                <path fillRule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z" />
-                <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466" />
-              </svg>
-              <div style={{ height: '50%' }} className="w-full flex">
-                <div style={{
-                  width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%'
-                }}>
-                  <button onClick={() => handleClick('counterClockwise')} style={{
-                    padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                    border: 'none', color: 'white', outline: 'none'
-                  }} >
-                    {keyConfig.counterClockwise}
-                  </button>
-                </div>
-                <div style={{
-                  width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%'
-                }}>
-                  <button onClick={() => handleClick('up')} style={{
-                    position: 'absolute', top: '20%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                    border: 'none', color: 'white', outline: 'none'
-                  }} >
-                    {keyConfig.up}
-                  </button>
-                </div>
-                <div style={{
-                  width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%'
-                }}>
-                  <button onClick={() => handleClick('clockwise')} style={{
-                    padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                    border: 'none', color: 'white', outline: 'none'
-                  }} >
-                    {keyConfig.clockwise}
-                  </button>
-                </div>
-              </div>
-              <div style={{ height: '50%' }} className="w-full flex">
-                <div style={{
-                  width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%'
-                }}>
-                  <button onClick={() => handleClick('left')} style={{
-                    position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                    border: 'none', color: 'white', outline: 'none'
-                  }} >
-                    {keyConfig.left}
-                  </button>
-                </div>
-                <div style={{
-                  width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%'
-                }}>
-                  <button onClick={() => handleClick('down')} style={{
-                    padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                    border: 'none', color: 'white', outline: 'none'
-                  }} >
-                    {keyConfig.down}
-                  </button>
-                </div>
-                <div style={{
-                  width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%'
-                }}>
-                  <button onClick={() => handleClick('right')} style={{
-                    position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                    border: 'none', color: 'white', outline: 'none'
-                  }} >
-                    {keyConfig.right}
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div style={{ height: '30%' }} className="w-full flex">
-              <div style={{ width: '50%' }} className="h-full flex items-center justify-center relative">
-                <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-forward-fill" viewBox="0 0 16 16"
-                  style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%) scaleX(-1)' }}>
-                  <path d="m9.77 12.11 4.012-2.953a.647.647 0 0 0 0-1.114L9.771 5.09a.644.644 0 0 0-.971.557V6.65H2v3.9h6.8v1.003c0 .505.545.808.97.557" />
-                </svg>
-                <button onClick={() => handleClick('backward')} style={{
-                  position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                  border: 'none', color: 'white', outline: 'none'
-                }} >
-                  {keyConfig.backward}
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}> {/* Añade estilos de flexibilidad aquí */}
+                <button style={{ marginRight: '5rem', height: '2.5rem', width: '6rem', backgroundColor: 'rgb(43, 119, 231)', color: 'white', borderRadius: '0.5rem' }} className="focus:outline-none">
+                  Share
+                </button>
+                <button style={{ marginLeft: '5rem', height: '2.5rem', width: '6rem', backgroundColor: 'rgb(43, 119, 231)', color: 'white', borderRadius: '0.5rem' }} className="focus:outline-none"
+                  onClick={() => {
+                    setCurrentMovementSpeed(0);
+                    spaceShipRef.current.position.subVectors(spaceShipRef.current.position, spaceShipRef.current.position);
+                    spaceShipRef.current.rotation.set(0, 0, 0);
+                    setShowResult(false);
+                    setCounter(0); // Reiniciar contador
+                  }}>
+                  Restart
                 </button>
               </div>
-              <div style={{ width: '50%' }} className="h-full flex items-center justify-center relative">
-                <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-forward-fill" viewBox="0 0 16 16"
-                  style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-                  <path d="m9.77 12.11 4.012-2.953a.647.647 0 0 0 0-1.114L9.771 5.09a.644.644 0 0 0-.971.557V6.65H2v3.9h6.8v1.003c0 .505.545.808.97.557" />
-                </svg>
-                <button onClick={() => handleClick('forward')} style={{
-                  position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                  border: 'none', color: 'white', outline: 'none'
-                }} >
-                  {keyConfig.forward}
-                </button>
-              </div>
-            </div>
-            <div style={{ height: '5%' }} className="w-full" />
 
+
+            </div>
+          )}
+          <div className='absolute top-28 left-0 right-0 z-10 flex items-center justify-center'>
+            <h1 className='sm:text-xl sm:leading-snug text-center neo-brutalism-blue py-4 px-8 text-white mx-5'>
+              <p> Tiempo: {counter.toFixed(2)}s</p>
+            </h1>
+          </div>
+          <div className='absolute top-50 left-0 right-0 z-10 flex items-center justify-center'>
+            <h1 className='sm:text-xl sm:leading-snug text-center neo-brutalism-blue py-4 px-8 text-white mx-5'>
+              <p> {stargateCurrent}/{stargates.length}</p>
+            </h1>
           </div>
 
+          <div className="absolute inset-0 z-10 flex items-center "
+            style={{ left: '1%' }}>
 
-        )}
-      </div>
+            <button
+              className="relative h-12 w-9 text-white bg-blue-500 rounded-md focus:outline-none focus:outline-none"
+              onClick={() => {
+                if (!showResult) {
+                  setIsOpen(!isOpen);
+                }
+              }}>
+              {isOpen && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="27" height="27" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  style={{
+                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) scaleX(-1)'
+                  }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                </svg>
+              )}
+              {!isOpen && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-joystick" viewBox="0 0 16 16"
+                  style={{
+                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'
+                  }}>
+                  <path d="M10 2a2 2 0 0 1-1.5 1.937v5.087c.863.083 1.5.377 1.5.726 0 .414-.895.75-2 .75s-2-.336-2-.75c0-.35.637-.643 1.5-.726V3.937A2 2 0 1 1 10 2" />
+                  <path d="M0 9.665v1.717a1 1 0 0 0 .553.894l6.553 3.277a2 2 0 0 0 1.788 0l6.553-3.277a1 1 0 0 0 .553-.894V9.665c0-.1-.06-.19-.152-.23L9.5 6.715v.993l5.227 2.178a.125.125 0 0 1 .001.23l-5.94 2.546a2 2 0 0 1-1.576 0l-5.94-2.546a.125.125 0 0 1 .001-.23L6.5 7.708l-.013-.988L.152 9.435a.25.25 0 0 0-.152.23" />
+                </svg>
+              )}
+            </button>
+            {isOpen && (
+              <div style={{ height: '50vh', width: '50vh', borderRadius: '20px', backgroundColor: 'rgba(43, 79, 151, 0.3)' }} className="absolute left-20 bg-white  py-1 z-50 flex flex-col justify-around items-center">
+                <div style={{ height: '5%' }} className="w-full" />
+                <div style={{ height: '70%', position: 'relative' }} className="w-80 ">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="55" height="55" fill="white" className="bi bi-dpad-fill" viewBox="0 0 16 16"
+                    style={{
+                      position: 'absolute', top: '60%', left: '50%', transform: 'translate(-50%, -50%)'
+                    }}>
+                    <path d="M6.5 0A1.5 1.5 0 0 0 5 1.5v3a.5.5 0 0 1-.5.5h-3A1.5 1.5 0 0 0 0 6.5v3A1.5 1.5 0 0 0 1.5 11h3a.5.5 0 0 1 .5.5v3A1.5 1.5 0 0 0 6.5 16h3a1.5 1.5 0 0 0 1.5-1.5v-3a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 0 16 9.5v-3A1.5 1.5 0 0 0 14.5 5h-3a.5.5 0 0 1-.5-.5v-3A1.5 1.5 0 0 0 9.5 0zm1.288 2.34a.25.25 0 0 1 .424 0l.799 1.278A.25.25 0 0 1 8.799 4H7.201a.25.25 0 0 1-.212-.382zm0 11.32-.799-1.277A.25.25 0 0 1 7.201 12H8.8a.25.25 0 0 1 .212.383l-.799 1.278a.25.25 0 0 1-.424 0Zm-4.17-4.65-1.279-.798a.25.25 0 0 1 0-.424l1.279-.799A.25.25 0 0 1 4 7.201V8.8a.25.25 0 0 1-.382.212Zm10.043-.798-1.278.799A.25.25 0 0 1 12 8.799V7.2a.25.25 0 0 1 .383-.212l1.278.799a.25.25 0 0 1 0 .424Z" />
+                  </svg>
+
+                  <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-arrow-clockwise" viewBox="0 0 16 16"
+                    style={{
+                      position: 'absolute', top: '30%', left: '83%', transform: 'translate(-50%, -50%)'
+                    }}>
+                    <path fillRule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z" />
+                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
+                  </svg>
+
+                  <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-arrow-counterclockwise" viewBox="0 0 16 16"
+                    style={{
+                      position: 'absolute', top: '30%', left: '17%', transform: 'translate(-50%, -50%)'
+                    }}>
+                    <path fillRule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z" />
+                    <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466" />
+                  </svg>
+                  <div style={{ height: '50%' }} className="w-full flex">
+                    <div style={{
+                      width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%'
+                    }}>
+                      <button onClick={() => handleClick('counterClockwise')} style={{
+                        padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                        border: 'none', color: 'white', outline: 'none'
+                      }} >
+                        {keyConfigPreview.counterClockwise}
+                      </button>
+                    </div>
+                    <div style={{
+                      width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%'
+                    }}>
+                      <button onClick={() => handleClick('up')} style={{
+                        position: 'absolute', top: '20%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                        border: 'none', color: 'white', outline: 'none'
+                      }} >
+                        {keyConfigPreview.up}
+                      </button>
+                    </div>
+                    <div style={{
+                      width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%'
+                    }}>
+                      <button onClick={() => handleClick('clockwise')} style={{
+                        padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                        border: 'none', color: 'white', outline: 'none'
+                      }} >
+                        {keyConfigPreview.clockwise}
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ height: '50%' }} className="w-full flex">
+                    <div style={{
+                      width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%'
+                    }}>
+                      <button onClick={() => handleClick('left')} style={{
+                        position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                        border: 'none', color: 'white', outline: 'none'
+                      }} >
+                        {keyConfigPreview.left}
+                      </button>
+                    </div>
+                    <div style={{
+                      width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%'
+                    }}>
+                      <button onClick={() => handleClick('down')} style={{
+                        padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                        border: 'none', color: 'white', outline: 'none'
+                      }} >
+                        {keyConfigPreview.down}
+                      </button>
+                    </div>
+                    <div style={{
+                      width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%'
+                    }}>
+                      <button onClick={() => handleClick('right')} style={{
+                        position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                        border: 'none', color: 'white', outline: 'none'
+                      }} >
+                        {keyConfigPreview.right}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ height: '30%' }} className="w-full flex">
+                  <div style={{ width: '50%' }} className="h-full flex items-center justify-center relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-forward-fill" viewBox="0 0 16 16"
+                      style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%) scaleX(-1)' }}>
+                      <path d="m9.77 12.11 4.012-2.953a.647.647 0 0 0 0-1.114L9.771 5.09a.644.644 0 0 0-.971.557V6.65H2v3.9h6.8v1.003c0 .505.545.808.97.557" />
+                    </svg>
+                    <button onClick={() => handleClick('backward')} style={{
+                      position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                      border: 'none', color: 'white', outline: 'none'
+                    }} >
+                      {keyConfigPreview.backward}
+                    </button>
+                  </div>
+                  <div style={{ width: '50%' }} className="h-full flex items-center justify-center relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-forward-fill" viewBox="0 0 16 16"
+                      style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+                      <path d="m9.77 12.11 4.012-2.953a.647.647 0 0 0 0-1.114L9.771 5.09a.644.644 0 0 0-.971.557V6.65H2v3.9h6.8v1.003c0 .505.545.808.97.557" />
+                    </svg>
+                    <button onClick={() => handleClick('forward')} style={{
+                      position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                      border: 'none', color: 'white', outline: 'none'
+                    }} >
+                      {keyConfigPreview.forward}
+                    </button>
+                  </div>
+                </div>
+                <div style={{ height: '5%' }} className="w-full" />
+
+              </div>
+
+
+            )}
+          </div>
+        </div>
+      }
+
 
       {/* <div className="absolute inset-0 z-10 flex items-center ">
         <div className="group hover:cursor-pointer">
@@ -470,73 +626,69 @@ function Home() {
 
       </div> */}
 
-      <Canvas className="w-full h-screen bg-transparent" ref={canvasRef}
-        camera={{ far: 10000 }}>
+      <Canvas className={animationClass} ref={canvasRef}
+        camera={{ far: 10000 }} key={animationKey}>
+        {isContentLoaded && isAnimationDone ?
+          (
+            <Suspense fallback={null} >
+              <>
+                {collisionObjects.current.torusGroup && (
+                  <primitive key="torusGroup" object={collisionObjects.current.torusGroup} />
+                )}
+                {collisionObjects.current.spaceStationGroup && (
+                  <primitive key="spaceStationGroup" object={collisionObjects.current.spaceStationGroup} />
+                )}
+              </><CameraController spaceShipRef={spaceShipRef} collisionObjects={collisionObjects.current} nextGate={nextGate} nMax={stargates.length}
+                puntoControlRef={puntoControlRef} typeCamera={typeCamera} setIsForward={setIsForward} isForward={isForward} isBackward={isBackward}
+                isLeft={isLeft} isRight={isRight} isUp={isUp} isDown={isDown} isClockwise={isClockwise} isCounterClockwise={isCounterClockwise}
+                currentMovementSpeed={currentMovementSpeed} setCurrentMovementSpeed={setCurrentMovementSpeed}
+                targetRotation={targetRotation} setTargetRotation={setTargetRotation} /><Environment
+                background={true} // can be true, false or "only" (which only sets the background) (default: false)
+                blur={0.01} // blur factor between 0 and 1 (default: 0, only works with three 0.146 and up)
+                files={[
+                  'right.png', // px
+                  'left.png', // nx
+                  'top.png', // py
+                  'bot.png', // ny
+                  'front.png', // pz
+                  'back.png' // nz
+                ]}
+                path="/Spaceship-Controller/bkg/lightblue/"
+                preset={null}
+                scene={undefined} // adds the ability to pass a custom THREE.Scene, can also be a ref
+                encoding={undefined} // adds the ability to pass a custom THREE.TextureEncoding (default: THREE.sRGBEncoding for an array of files and THREE.LinearEncoding for a single texture)
+              /><Bvh firstHitOnly>
+                <SpaceStation ref={spaceStationRef} scale={30} position={[0, -10, -800]} rotation={[0, -Math.PI, 0]} />
 
-        <>
-          {collisionObjects.current.torusGroup && (
-            <primitive key="torusGroup" object={collisionObjects.current.torusGroup} />
+                <RusticSpaceShip position={[0, 1000, 500]} ref={spaceShipRef} isForward={isForward}
+                  isLeft={isLeft} isRight={isRight} isUp={isUp} isDown={isDown} isClockwise={isClockwise} isCounterClockwise={isCounterClockwise} />
+
+                {stargates[stargateCurrent] && (
+                  <Circle
+                    args={[3, 32, 0, Math.PI * 2]}
+                    ref={puntoControlRef}
+                    rotation={stargates[stargateCurrent].rotate}
+                    position={stargates[stargateCurrent].position}
+                    scale={stargates[stargateCurrent].scale / 2.99}
+                    material={materialStargateCurrent} />
+                )}
+                {stargates.filter((stargate) => stargate.orden === stargateCurrent || stargate.orden === stargateCurrent + 1
+                ).map((stargate, index) => (
+                  <Stargate
+                    key={index}
+                    position={stargate.position}
+                    scale={stargate.scale / 2.99}
+                    rotation={stargate.rotate}
+                    isEmissive={stargate.orden === stargateCurrent}
+                    currentMovementSpeed={currentMovementSpeed} />
+                ))}
+
+              </Bvh><directionalLight intensity={5} color={0x8888ff} position={[0, 0, 500]} /><directionalLight intensity={5} color={0x8888ff} position={[0, 0, -500]} />
+            </Suspense>
+          ) : (
+            <Loader action={changeAnimationDone} />
           )}
-          {collisionObjects.current.spaceStationGroup && (
-            <primitive key="spaceStationGroup" object={collisionObjects.current.spaceStationGroup} />
-          )}
-        </>
 
-        <CameraController spaceShipRef={spaceShipRef} collisionObjects={collisionObjects.current} nextGate={nextGate} nMax={stargates.length}
-          puntoControlRef={puntoControlRef} typeCamera={typeCamera} setIsForward={setIsForward} setIsRight={setIsRight} setIsLeft={setIsLeft}
-          setIsUp={setIsUp} setIsDown={setIsDown} setIsClockwise={setIsClockwise} setIsCounterClockwise={setIsCounterClockwise} isForward={isForward}
-          isLeft={isLeft} isRight={isRight} isUp={isUp} isDown={isDown} isClockwise={isClockwise} isCounterClockwise={isCounterClockwise}
-          currentMovementSpeed={currentMovementSpeed} setCurrentMovementSpeed={setCurrentMovementSpeed} />
-        <Environment
-          background={true} // can be true, false or "only" (which only sets the background) (default: false)
-          blur={0.01} // blur factor between 0 and 1 (default: 0, only works with three 0.146 and up)
-          files={[
-            'right.png', // px
-            'left.png',  // nx
-            'top.png',   // py
-            'bot.png',   // ny
-            'front.png', // pz
-            'back.png'   // nz
-          ]}
-          path="/Spaceship-Controller/bkg/lightblue/"
-          preset={null}
-          scene={undefined} // adds the ability to pass a custom THREE.Scene, can also be a ref
-          encoding={undefined} // adds the ability to pass a custom THREE.TextureEncoding (default: THREE.sRGBEncoding for an array of files and THREE.LinearEncoding for a single texture)
-        />
-        <Bvh firstHitOnly>
-          <SpaceStation ref={spaceStationRef} scale={30} position={[0, -10, -800]} rotation={[0, -Math.PI, 0]} />
-
-          <RusticSpaceShip position={[0, 1000, 500]} ref={spaceShipRef} isForward={isForward}
-            isLeft={isLeft} isRight={isRight} isUp={isUp} isDown={isDown} isClockwise={isClockwise} isCounterClockwise={isCounterClockwise} />
-
-          {stargates[stargateCurrent] && (
-            <Circle
-              args={[3, 32, 0, Math.PI * 2]}
-              ref={puntoControlRef}
-              rotation={stargates[stargateCurrent].rotate}
-              position={stargates[stargateCurrent].position}
-              scale={stargates[stargateCurrent].scale / 2.99}
-              material={materialStargateCurrent}
-            />
-          )}
-          {stargates.filter((stargate) =>
-            stargate.orden === stargateCurrent || stargate.orden === stargateCurrent + 1
-          ).map((stargate, index) => (
-            <Stargate
-              key={index}
-              position={stargate.position}
-              scale={stargate.scale / 2.99}
-              rotation={stargate.rotate}
-              isEmissive={stargate.orden === stargateCurrent}
-              currentMovementSpeed={currentMovementSpeed}
-            />
-          ))}
-
-        </Bvh>
-
-
-        <directionalLight intensity={5} color={0x8888ff} position={[0, 0, 500]} />
-        <directionalLight intensity={5} color={0x8888ff} position={[0, 0, -500]} />
 
       </Canvas>
     </section >

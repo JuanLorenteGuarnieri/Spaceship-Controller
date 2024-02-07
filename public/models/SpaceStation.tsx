@@ -69,7 +69,7 @@ type SpaceStationProps = JSX.IntrinsicElements['group'] & {
 };
 
 export const SpaceStation = forwardRef<Group, SpaceStationProps>(({ scale, position, rotation }, ref) => {
-  const { nodes, materials } = useGLTF('models/space_station3.glb') as GLTFResult
+  const { nodes, materials } = useGLTF('models/space_station.glb') as GLTFResult
 
   // Clonar el material para esta instancia específica
   const emissiveMaterial = useMemo(() => materials.Main.clone(), [materials.emitrED]);
@@ -130,4 +130,4 @@ export const SpaceStation = forwardRef<Group, SpaceStationProps>(({ scale, posit
   )
 });
 
-useGLTF.preload('models/space_station3.glb')
+useGLTF.preload('models/space_station.glb')
