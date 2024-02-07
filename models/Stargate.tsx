@@ -33,32 +33,37 @@ type SpaceShipProps = JSX.IntrinsicElements['group'] & {
   position: [number, number, number];
   rotation: [number, number, number];
   isEmissive: boolean;
+  currentMovementSpeed: number;
 };
 
-export const Stargate = forwardRef<Group, SpaceShipProps>(({ scale, position, rotation, isEmissive }, ref) => {
+export const Stargate = forwardRef<Group, SpaceShipProps>(({ scale, position, rotation, isEmissive, currentMovementSpeed }, ref) => {
   const { nodes, materials } = useGLTF('models/stargate.glb') as GLTFResult
 
   // Clonar el material para esta instancia específica
   const emissiveMaterial = useMemo(() => materials.Stargate_Lock_L.clone(), [materials.Stargate_Lock_L]);
   const [hue, setHue] = useState(0);
-
+  const [additionalRotation, setAdditionalRotation] = useState(0);
 
   useFrame(({ clock }) => {
     if (isEmissive) {
       const time = clock.getElapsedTime();
-      const intensity = Math.abs(Math.sin(time * 2)) * 1;
-      setHue((time % 10) / 10);
+      const intensity = Math.abs(Math.sin(time * 4)) * 1;
+      setHue((time % 6) / 6);
       emissiveMaterial.emissiveIntensity = intensity;
       emissiveMaterial.emissive.setHSL(hue, 1, 0.5);
+
+      const rotationSpeedFactor = currentMovementSpeed * 4; // Normalizar a [0, 1]
+      setAdditionalRotation(rotationSpeedFactor * Math.PI * 2) // Ajuste este valor según sea necesario
     } else {
       emissiveMaterial.emissiveIntensity = 0;
       emissiveMaterial.emissive.setHSL(0, 0, 0);
     }
+
   });
 
 
   return (
-    <group ref={ref} scale={scale} position={position} rotation={[rotation[0], rotation[1], rotation[2] + hue * Math.PI * 2]} dispose={null}>
+    <group ref={ref} scale={scale} position={position} rotation={[rotation[0], rotation[1], rotation[2] + hue * Math.PI * 2 + additionalRotation]} dispose={null}>
       <mesh geometry={nodes.Lock_Light001.geometry} material={emissiveMaterial} />
       <mesh geometry={nodes.Stargate001.geometry} material={materials.Stargate_Main} />
       <mesh geometry={nodes.Glyphs001.geometry} material={materials.Stargate_Glyphs} />
