@@ -48,7 +48,7 @@ export const Stargate = forwardRef<Group, SpaceShipProps>(({ scale, position, ro
     if (isEmissive) {
       const time = clock.getElapsedTime();
       const intensity = Math.abs(Math.sin(time * 4)) * 1;
-      setHue((time % 6) / 6);
+      setHue((time % 4 * (Math.abs(currentMovementSpeed * 2) + 1)) / 4 * (Math.abs(currentMovementSpeed * 2) + 1));
       emissiveMaterial.emissiveIntensity = intensity;
       emissiveMaterial.emissive.setHSL(hue, 1, 0.5);
 
@@ -63,7 +63,7 @@ export const Stargate = forwardRef<Group, SpaceShipProps>(({ scale, position, ro
 
 
   return (
-    <group ref={ref} scale={scale} position={position} rotation={[rotation[0], rotation[1], rotation[2] + hue * Math.PI * 2 + additionalRotation]} dispose={null}>
+    <group ref={ref} scale={scale} position={position} rotation={[rotation[0], rotation[1], rotation[2] + hue * Math.PI * 2]} dispose={null}>
       <mesh geometry={nodes.Lock_Light001.geometry} material={emissiveMaterial} />
       <mesh geometry={nodes.Stargate001.geometry} material={materials.Stargate_Main} />
       <mesh geometry={nodes.Glyphs001.geometry} material={materials.Stargate_Glyphs} />
