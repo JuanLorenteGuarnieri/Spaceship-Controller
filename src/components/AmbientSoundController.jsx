@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import ambient from '/public/audio/ambient.mp3';
+
 
 const AmbientSoundController = ({ isPlaying }) => {
   const audioContextRef = useRef(null);
@@ -16,7 +18,7 @@ const AmbientSoundController = ({ isPlaying }) => {
 
       gainNode.gain.value = 0.2; // Ajusta el volumen al 50%
 
-      fetch('public/audio/ambient.mp3')
+      fetch(ambient)
         .then(response => response.arrayBuffer())
         .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
         .then(audioBuffer => {

@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import pressure from '/public/audio/pressure.mp3';
+
 
 const PressureSoundController = ({ conditions }) => {
   const audioContextRef = useRef(null);
@@ -11,7 +13,7 @@ const PressureSoundController = ({ conditions }) => {
     const audioContext = audioContextRef.current;
 
     const loadSound = async () => {
-      const response = await fetch('public/audio/pressure.mp3');
+      const response = await fetch(pressure);
       const arrayBuffer = await response.arrayBuffer();
       return audioContext.decodeAudioData(arrayBuffer);
     };

@@ -12,6 +12,10 @@ import titleImage from '../assets/title.png';
 import { SpaceShip } from '../../public/models/Spaceship';
 import Joystick from '../components/Joystick';
 
+import boost from '/public/audio/boost.mp3';
+import hit from '/public/audio/hit.mp3';
+
+
 /*
   TODO: HUD
 
@@ -452,7 +456,7 @@ function Home() {
 
     gainNode.gain.value = 1; // Ajusta el volumen al 50%
 
-    fetch('public/audio/boost.mp3')
+    fetch(boost)
       .then(response => response.arrayBuffer())
       .then(arrayBuffer => audioBoostContextRef.current.decodeAudioData(arrayBuffer))
       .then(audioBuffer => {
@@ -473,7 +477,7 @@ function Home() {
 
     gainNode.gain.value = 1; // Ajusta el volumen al 50%
 
-    fetch('public/audio/hit.mp3')
+    fetch(hit)
       .then(response => response.arrayBuffer())
       .then(arrayBuffer => audioHitContextRef.current.decodeAudioData(arrayBuffer))
       .then(audioBuffer => {

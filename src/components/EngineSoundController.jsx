@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import engineOn from '/public/audio/engineOn.mp3';
+import engineOff from '/public/audio/engineOff.mp3';
+
 
 const EngineSoundPlayer = ({ isForward }) => {
   const audioContextRef = useRef(new (window.AudioContext || window.webkitAudioContext)());
@@ -46,9 +49,9 @@ const EngineSoundPlayer = ({ isForward }) => {
   useEffect(() => {
     if (isForward !== prevIsForward) {
       if (isForward) {
-        playSound('public/audio/engineOn.mp3');
+        playSound(engineOn);
       } else {
-        playSound('public/audio/engineOff.mp3');
+        playSound(engineOff);
         if (sourceRef.current) {
           sourceRef.current.onended = null; // Evita que se reproduzca engineContinue después de engineOff
           sourceRef.current.stop();
