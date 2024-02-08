@@ -127,7 +127,7 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
       });
       setTimeout(() => {
         setControlPointCC(true);
-      }, 1000);
+      }, 800);
     }
   };
 

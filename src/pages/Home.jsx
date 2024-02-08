@@ -1,19 +1,20 @@
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Environment, Bvh, Circle, useProgress } from '@react-three/drei'
-import { RusticSpaceShip } from '../../public/models/RusticSpaceShip';
 import { SpaceStation } from '../../public/models/SpaceStation';
 import * as THREE from 'three'
 import { Stargate } from '../../public/models/Stargate';
 import CameraController from '../components/CameraController';
 import Loader from '../components/Loader';
+import InitCameraController from '../components/InitCameraController';
+
+import titleImage from '../assets/title.png';
+import { SpaceShip } from '../../public/models/Spaceship';
 
 /*
   TODO: HUD
 
-  TODO: Title
-
-  TODO: Share option
+  TODO: Mobile control option
 */
 
 
@@ -22,6 +23,8 @@ function Home() {
   const spaceStationRef = useRef();
   const puntoControlRef = useRef();
   const typeCamera = "3P";
+
+  const [start, setStart] = useState(false);
 
   const [showResult, setShowResult] = useState(false);
 
@@ -408,9 +411,36 @@ function Home() {
     }
   }, [isContentLoaded, isAnimationDone]);
 
+  useEffect(() => {
+    if (start == true) {
+      spaceShipRef.current.position.subVectors(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0));
+      spaceShipRef.current.rotation.set(0, 0, 0);
+    }
+
+  }, [start]);
+
   return (
     <section className="w-full h-screen relative" style={{ backgroundColor: 'black' }}>
-      {isAnimationDone &&
+      {isAnimationDone && !start &&
+        <div className='fadeIn1 absolute z-10'
+          style={{ top: '50%', right: '50%', transform: 'translate(25%, 25%)' }}>
+          <button style={{ marginLeft: '5rem', height: '2.5rem', width: '6rem', backgroundColor: 'rgb(43, 119, 231)', color: 'white', borderRadius: '0.5rem' }} className="focus:outline-none"
+            onClick={() => {
+              setStart(true);
+            }}>
+            START
+          </button>
+        </div>
+      }
+
+      {isAnimationDone && !start &&
+        <div className='fadeIn1 absolute z-10'
+          style={{ top: '20%', right: '50%', transform: 'translate(50%, 50%)' }}>
+          <img src={titleImage} />
+        </div>
+      }
+
+      {isAnimationDone && start &&
         <div className='fadeIn1' style={{ backgroundColor: 'black' }}>
           {showResult && (
             <div style={{
@@ -427,10 +457,7 @@ function Home() {
               <p style={{ fontSize: 35 }} className="text-white">Time: {counter.toFixed(2)} s</p>
 
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}> {/* Añade estilos de flexibilidad aquí */}
-                <button style={{ marginRight: '5rem', height: '2.5rem', width: '6rem', backgroundColor: 'rgb(43, 119, 231)', color: 'white', borderRadius: '0.5rem' }} className="focus:outline-none">
-                  Share
-                </button>
-                <button style={{ marginLeft: '5rem', height: '2.5rem', width: '6rem', backgroundColor: 'rgb(43, 119, 231)', color: 'white', borderRadius: '0.5rem' }} className="focus:outline-none"
+                <button style={{ height: '2.5rem', width: '6rem', backgroundColor: 'rgb(43, 119, 231)', color: 'white', borderRadius: '0.5rem' }} className="focus:outline-none"
                   onClick={() => {
                     setCurrentMovementSpeed(0);
                     spaceShipRef.current.position.subVectors(spaceShipRef.current.position, spaceShipRef.current.position);
@@ -445,16 +472,37 @@ function Home() {
 
             </div>
           )}
-          <div className='absolute top-28 left-0 right-0 z-10 flex items-center justify-center'>
-            <h1 className='sm:text-xl sm:leading-snug text-center neo-brutalism-blue py-4 px-8 text-white mx-5'>
-              <p> Tiempo: {counter.toFixed(2)}s</p>
-            </h1>
-          </div>
-          <div className='absolute top-50 left-0 right-0 z-10 flex items-center justify-center'>
-            <h1 className='sm:text-xl sm:leading-snug text-center neo-brutalism-blue py-4 px-8 text-white mx-5'>
-              <p> {stargateCurrent}/{stargates.length}</p>
-            </h1>
-          </div>
+          {isAnimationDone && start && isCounting && (
+            <>
+              <div className='absolute  z-10 flex items-center justify-center'
+                style={{
+                  height: '5%',
+                  width: '5%',
+                  top: '12.5%',
+                  left: '5%',
+                  borderRadius: '20px',
+                  backgroundColor: 'rgba(43, 79, 151, 0.3)',
+                }}>
+                <button style={{ height: '2.5rem', width: '6rem', backgroundColor: 'rgb(43, 119, 231)', color: 'white', borderRadius: '0.5rem' }} className="focus:outline-none">
+                  {counter.toFixed(2)} s
+                </button>
+
+              </div><div className='absolute  z-10 flex items-center justify-center'
+                style={{
+                  height: '5%',
+                  width: '5%',
+                  top: '5%',
+                  left: '5%',
+                  borderRadius: '20px',
+                  backgroundColor: 'rgba(43, 79, 151, 0.3)',
+                }}>
+                <button style={{ height: '2.5rem', width: '6rem', backgroundColor: 'rgb(43, 119, 231)', color: 'white', borderRadius: '0.5rem' }} className="focus:outline-none">
+                  {stargateCurrent}/{stargates.length}
+                </button>
+              </div>
+            </>
+          )}
+
 
           <div className="absolute inset-0 z-10 flex items-center "
             style={{ left: '1%' }}>
@@ -638,11 +686,21 @@ function Home() {
                 {collisionObjects.current.spaceStationGroup && (
                   <primitive key="spaceStationGroup" object={collisionObjects.current.spaceStationGroup} />
                 )}
-              </><CameraController spaceShipRef={spaceShipRef} collisionObjects={collisionObjects.current} nextGate={nextGate} nMax={stargates.length}
-                puntoControlRef={puntoControlRef} typeCamera={typeCamera} setIsForward={setIsForward} isForward={isForward} isBackward={isBackward}
-                isLeft={isLeft} isRight={isRight} isUp={isUp} isDown={isDown} isClockwise={isClockwise} isCounterClockwise={isCounterClockwise}
-                currentMovementSpeed={currentMovementSpeed} setCurrentMovementSpeed={setCurrentMovementSpeed}
-                targetRotation={targetRotation} setTargetRotation={setTargetRotation} /><Environment
+              </>
+              {start &&
+                <CameraController spaceShipRef={spaceShipRef} collisionObjects={collisionObjects.current} nextGate={nextGate} nMax={stargates.length}
+                  puntoControlRef={puntoControlRef} typeCamera={typeCamera} setIsForward={setIsForward} isForward={isForward} isBackward={isBackward}
+                  isLeft={isLeft} isRight={isRight} isUp={isUp} isDown={isDown} isClockwise={isClockwise} isCounterClockwise={isCounterClockwise}
+                  currentMovementSpeed={currentMovementSpeed} setCurrentMovementSpeed={setCurrentMovementSpeed}
+                  targetRotation={targetRotation} setTargetRotation={setTargetRotation} />
+              }
+
+              {!start &&
+                <InitCameraController spaceShipRef={spaceShipRef} />
+              }
+
+
+              <Environment
                 background={true} // can be true, false or "only" (which only sets the background) (default: false)
                 blur={0.01} // blur factor between 0 and 1 (default: 0, only works with three 0.146 and up)
                 files={[
@@ -660,7 +718,7 @@ function Home() {
               /><Bvh firstHitOnly>
                 <SpaceStation ref={spaceStationRef} scale={30} position={[0, -10, -800]} rotation={[0, -Math.PI, 0]} />
 
-                <RusticSpaceShip position={[0, 1000, 500]} ref={spaceShipRef} isForward={isForward}
+                <SpaceShip position={[0, 1000, 500]} ref={spaceShipRef} isForward={isForward}
                   isLeft={isLeft} isRight={isRight} isUp={isUp} isDown={isDown} isClockwise={isClockwise} isCounterClockwise={isCounterClockwise} />
 
                 {stargates[stargateCurrent] && (
@@ -683,7 +741,9 @@ function Home() {
                     currentMovementSpeed={currentMovementSpeed} />
                 ))}
 
-              </Bvh><directionalLight intensity={5} color={0x8888ff} position={[0, 0, 500]} /><directionalLight intensity={5} color={0x8888ff} position={[0, 0, -500]} />
+              </Bvh>
+              <directionalLight intensity={5} color={0x8888ff} position={[0, 0, 500]} />
+              <directionalLight intensity={5} color={0x8888ff} position={[0, 0, -500]} />
             </Suspense>
           ) : (
             <Loader action={changeAnimationDone} />
