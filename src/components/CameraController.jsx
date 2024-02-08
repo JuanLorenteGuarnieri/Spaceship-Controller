@@ -8,9 +8,9 @@ import AmbientSoundController from './AmbientSoundController.jsx';
 import PressureSoundController from './PressureSoundController.jsx';
 
 
-const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate, puntoControlRef, nMax, setIsForward, isForward, isBackward,
+const CameraController = ({ spaceShipRef, collisionObjects, nextGate, puntoControlRef, nMax, setIsForward, isForward, isBackward,
   isLeft, isRight, isUp, isDown, isClockwise, isCounterClockwise, currentMovementSpeed, setCurrentMovementSpeed,
-  targetRotation, setTargetRotation }) => {
+  targetRotation, setTargetRotation, playHit, playBoost }) => {
 
   const cubeRef = useRef();
   const [controlPointCC, setControlPointCC] = useState(true);
@@ -22,55 +22,7 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
   const maxMovementSpeed = 0.4;
   const zoomCamera = 5;
 
-  const audioBoostContextRef = useRef(null);
-  const audioHitContextRef = useRef(null);
 
-  // Inicializa AudioContext solo una vez
-  if (!audioBoostContextRef.current) {
-    audioBoostContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  const audioBoostContext = audioBoostContextRef.current;
-
-  if (!audioHitContextRef.current) {
-    audioHitContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  const audioHitContext = audioHitContextRef.current;
-
-  const playBoostSound = () => {
-    const source = audioBoostContext.createBufferSource();
-    const gainNode = audioBoostContext.createGain(); // Crea un GainNode para controlar el volumen
-
-    gainNode.gain.value = 1; // Ajusta el volumen al 50%
-
-    fetch('public/audio/boost.mp3')
-      .then(response => response.arrayBuffer())
-      .then(arrayBuffer => audioBoostContext.decodeAudioData(arrayBuffer))
-      .then(audioBuffer => {
-        source.buffer = audioBuffer;
-        source.connect(gainNode); // Conecta la fuente al GainNode
-        gainNode.connect(audioBoostContext.destination); // Conecta el GainNode al destino (salida de audio)
-        source.start(0);
-      })
-      .catch(e => console.error('Error loading audio file:', e));
-  };
-
-  const playHitSound = () => {
-    const source = audioHitContext.createBufferSource();
-    const gainNode = audioHitContext.createGain(); // Crea un GainNode para controlar el volumen
-
-    gainNode.gain.value = 1; // Ajusta el volumen al 50%
-
-    fetch('public/audio/hit.mp3')
-      .then(response => response.arrayBuffer())
-      .then(arrayBuffer => audioHitContext.decodeAudioData(arrayBuffer))
-      .then(audioBuffer => {
-        source.buffer = audioBuffer;
-        source.connect(gainNode); // Conecta la fuente al GainNode
-        gainNode.connect(audioHitContext.destination); // Conecta el GainNode al destino (salida de audio)
-        source.start(0);
-      })
-      .catch(e => console.error('Error loading audio file:', e));
-  };
 
   // Función para detectar colisiones y devolver el objeto de colisión
   const detectCollision = (nextPosition) => {
@@ -115,11 +67,7 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
 
     if (shipBoundingBox.intersectsOBB(controlPointBoundingBox) && controlPointCC && cubeRef.current.position.z < -15) {
       // Si hay colisión, incrementa stargateCurrent
-      if (audioBoostContext.state === 'suspended') {
-        audioBoostContext.resume().then(playBoostSound);
-      } else {
-        playBoostSound();
-      }
+      playBoost();
       nextGate(nMax);
       setControlPointCC(false);
       setCurrentMovementSpeed(current => {
@@ -177,11 +125,7 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
       collisionVector.subVectors(objCol.position, spaceShipRef.current.position);
 
       if (Math.abs(currentMovementSpeed) > maxMovementSpeed / 2) {
-        if (audioHitContext.state === 'suspended') {
-          audioHitContext.resume().then(playHitSound);
-        } else {
-          playHitSound();
-        }
+        playHit();
       }
       setCurrentMovementSpeed(0);
 
@@ -221,11 +165,22 @@ const CameraController = ({ spaceShipRef, typeCamera, collisionObjects, nextGate
     down.applyQuaternion(spaceShipRef.current.quaternion);
 
 
-    if (typeCamera == "1P") {
-      camera.position.set(pos.x + 0.02 - dir.x * ((zoomCamera + currentMovementSpeed * 3) / 4), pos.y + 0.02 - dir.y * ((zoomCamera + currentMovementSpeed * 2) / 4), pos.z + 0.02 - dir.z * ((zoomCamera + currentMovementSpeed * 3) / 4));
-    } else if (typeCamera == "3P") {
-      camera.position.set(pos.x + 0.02 + dir.x * ((zoomCamera + currentMovementSpeed * 3) / 4), pos.y + 0.02 + dir.y * ((zoomCamera + currentMovementSpeed * 2) / 4), pos.z + 0.02 + dir.z * ((zoomCamera + currentMovementSpeed * 2.5) / 4));
-    }
+    // Calcula la base de la nueva posición de la cámara.
+    const baseX = pos.x + 0.02 + dir.x * ((zoomCamera + currentMovementSpeed * 3) / 4);
+    const baseY = pos.y + 0.02 + dir.y * ((zoomCamera + currentMovementSpeed * 2) / 4);
+    const baseZ = pos.z + 0.02 + dir.z * ((zoomCamera + currentMovementSpeed * 2.5) / 4);
+
+    // Define la intensidad del shake. Puedes ajustar estos valores.
+    const shakeIntensity = currentMovementSpeed * 0.01;
+
+    // Genera valores aleatorios para el shake.
+    const shakeX = (Math.random() - 0.5) * shakeIntensity;
+    const shakeY = (Math.random() - 0.5) * shakeIntensity;
+    const shakeZ = (Math.random() - 0.5) * shakeIntensity;
+
+    // Aplica la posición con el efecto de shake.
+    camera.position.set(baseX + shakeX, baseY + shakeY, baseZ + shakeZ);
+
 
     // Asegúrate de que tanto spaceShipRef como cubeRef estén definidos
     if (spaceShipRef.current && cubeRef.current) {

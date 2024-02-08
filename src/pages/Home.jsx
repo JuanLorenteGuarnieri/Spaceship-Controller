@@ -10,6 +10,7 @@ import InitCameraController from '../components/InitCameraController';
 
 import titleImage from '../assets/title.png';
 import { SpaceShip } from '../../public/models/Spaceship';
+import Joystick from '../components/Joystick';
 
 /*
   TODO: HUD
@@ -22,7 +23,6 @@ function Home() {
   const spaceShipRef = useRef();
   const spaceStationRef = useRef();
   const puntoControlRef = useRef();
-  const typeCamera = "3P";
 
   const [start, setStart] = useState(false);
 
@@ -50,6 +50,10 @@ function Home() {
 
   // Ref para el canvas
   const canvasRef = useRef(null);
+
+  function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  }
 
   function nextGate(nMax) {
     setStargateCurrent(current => {
@@ -115,7 +119,7 @@ function Home() {
   createStarGate(new THREE.Vector3(70, 30, -880), 8, [-0.1, -0.8, 0]);
   createStarGate(new THREE.Vector3(60, 35, -830), 5, [-0.1, -0.4, 0]);
   createStarGate(new THREE.Vector3(10, 55, -770), 5, [-0.1, -0.4, 0]);
-  createStarGate(new THREE.Vector3(-10, 95, -780), 5, [Math.PI / 2, 0, 0]);
+  createStarGate(new THREE.Vector3(-10, 110, -780), 5, [Math.PI / 2, 0, 0]);
   createStarGate(new THREE.Vector3(-10, 170, -780), 5, [Math.PI / 2, 0, 0]);
   createStarGate(new THREE.Vector3(-10, 270, -780), 14, [Math.PI / 2, 0, 0]);
   createStarGate(new THREE.Vector3(0.2, 203, -773.4), 3, [Math.PI / 2 + 0.1, 0, 0]);
@@ -314,7 +318,7 @@ function Home() {
         setCurrentKeySettingSelected('');
       }
     } else {
-      if (!showResult) {
+      if (!showResult && !isMobileDevice()) {
         if (event.key.toUpperCase() == keyConfig.down) {
           setIsDown(true);
         }
@@ -344,30 +348,32 @@ function Home() {
   };
 
   const handleKeyUp = (event) => {
-    setTargetRotation({ x: 0, y: 0, z: 0 });
-    if (event.key.toUpperCase() == keyConfig.down) {
-      setIsDown(false);
-    }
-    if (event.key.toUpperCase() == keyConfig.up) {
-      setIsUp(false);
-    }
-    if (event.key.toUpperCase() == keyConfig.left) {
-      setIsLeft(false);
-    }
-    if (event.key.toUpperCase() == keyConfig.right) {
-      setIsRight(false);
-    }
-    if (event.key.toUpperCase() == keyConfig.clockwise) {
-      setIsClockwise(false);
-    }
-    if (event.key.toUpperCase() == keyConfig.counterClockwise) {
-      setIsCounterClockwise(false);
-    }
-    if (event.key.toUpperCase() == keyConfig.backward) {
-      setIsBackward(false);
-    }
-    if (event.key.toUpperCase() == keyConfig.forward) {
-      setIsForward(false);
+    if (!isMobileDevice()) {
+      setTargetRotation({ x: 0, y: 0, z: 0 });
+      if (event.key.toUpperCase() == keyConfig.down) {
+        setIsDown(false);
+      }
+      if (event.key.toUpperCase() == keyConfig.up) {
+        setIsUp(false);
+      }
+      if (event.key.toUpperCase() == keyConfig.left) {
+        setIsLeft(false);
+      }
+      if (event.key.toUpperCase() == keyConfig.right) {
+        setIsRight(false);
+      }
+      if (event.key.toUpperCase() == keyConfig.clockwise) {
+        setIsClockwise(false);
+      }
+      if (event.key.toUpperCase() == keyConfig.counterClockwise) {
+        setIsCounterClockwise(false);
+      }
+      if (event.key.toUpperCase() == keyConfig.backward) {
+        setIsBackward(false);
+      }
+      if (event.key.toUpperCase() == keyConfig.forward) {
+        setIsForward(false);
+      }
     }
   };
 
@@ -419,6 +425,98 @@ function Home() {
 
   }, [start]);
 
+  //{SOUNDS
+
+  const audioBoostContextRef = useRef(null);
+  const audioHitContextRef = useRef(null);
+
+  const initPlaySound = () => {
+    // Inicializa AudioContext solo una vez
+    if (!audioBoostContextRef.current) {
+      audioBoostContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    if (!audioHitContextRef.current) {
+      audioHitContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+  }
+
+
+  const playBoostSound = () => {
+    if (!audioBoostContextRef.current) {
+      audioBoostContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const source = audioBoostContextRef.current.createBufferSource();
+    const gainNode = audioBoostContextRef.current.createGain(); // Crea un GainNode para controlar el volumen
+
+    gainNode.gain.value = 1; // Ajusta el volumen al 50%
+
+    fetch('public/audio/boost.mp3')
+      .then(response => response.arrayBuffer())
+      .then(arrayBuffer => audioBoostContextRef.current.decodeAudioData(arrayBuffer))
+      .then(audioBuffer => {
+        source.buffer = audioBuffer;
+        source.connect(gainNode); // Conecta la fuente al GainNode
+        gainNode.connect(audioBoostContextRef.current.destination); // Conecta el GainNode al destino (salida de audio)
+        source.start(0);
+      })
+      .catch(e => console.error('Error loading audio file:', e));
+  };
+
+  const playHitSound = () => {
+    if (!audioHitContextRef.current) {
+      audioHitContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const source = audioHitContextRef.current.createBufferSource();
+    const gainNode = audioHitContextRef.current.createGain(); // Crea un GainNode para controlar el volumen
+
+    gainNode.gain.value = 1; // Ajusta el volumen al 50%
+
+    fetch('public/audio/hit.mp3')
+      .then(response => response.arrayBuffer())
+      .then(arrayBuffer => audioHitContextRef.current.decodeAudioData(arrayBuffer))
+      .then(audioBuffer => {
+        source.buffer = audioBuffer;
+        source.connect(gainNode); // Conecta la fuente al GainNode
+        gainNode.connect(audioHitContextRef.current.destination); // Conecta el GainNode al destino (salida de audio)
+        source.start(0);
+      })
+      .catch(e => console.error('Error loading audio file:', e));
+  };
+
+  const playHit = () => {
+    if (audioHitContextRef.current.state === 'suspended') {
+      audioHitContextRef.current.resume().then(playHitSound);
+    } else {
+      playHitSound();
+    }
+  }
+
+  const playBoost = () => {
+    if (audioBoostContextRef.state === 'suspended') {
+      audioBoostContextRef.resume().then(playBoostSound);
+    } else {
+      playBoostSound();
+    }
+  }
+
+  //SOUNDS}
+
+  function formatCounter(counter) {
+    let formatted = counter.toFixed(2) + " s"; // Formato básico con 2 decimales
+    if (formatted.length > 6) {
+      // Si la longitud excede 5 caracteres, intenta reducir la precisión
+      formatted = counter.toFixed(1) + " s";
+      if (formatted.length > 6) {
+        // Si todavía es demasiado largo, muestra sin decimales
+        formatted = Math.round(counter) + " s";
+      }
+    }
+    return formatted;
+  }
+
+
   return (
     <section className="w-full h-screen relative" style={{ backgroundColor: 'black' }}>
       {isAnimationDone && !start &&
@@ -427,6 +525,7 @@ function Home() {
           <button style={{ marginLeft: '5rem', height: '2.5rem', width: '6rem', backgroundColor: 'rgb(43, 119, 231)', color: 'white', borderRadius: '0.5rem' }} className="focus:outline-none"
             onClick={() => {
               setStart(true);
+              initPlaySound();
             }}>
             START
           </button>
@@ -473,189 +572,307 @@ function Home() {
             </div>
           )}
           {isAnimationDone && start && isCounting && (
-            <>
-              <div className='absolute  z-10 flex items-center justify-center'
+            <div className='absolute z-10 flex flex-col items-center justify-center'
+              style={{
+                top: '5%',
+                left: '2.5%',
+                borderRadius: '20px',
+                padding: '1rem', // Añade padding alrededor de los botones dentro del contenedor
+                gap: '10px', // Esto no funcionará directamente en el estilo inline, ver nota abajo
+              }}>
+              <button
                 style={{
-                  height: '5%',
-                  width: '5%',
-                  top: '12.5%',
-                  left: '5%',
-                  borderRadius: '20px',
-                  backgroundColor: 'rgba(43, 79, 151, 0.3)',
-                }}>
-                <button style={{ height: '2.5rem', width: '6rem', backgroundColor: 'rgb(43, 119, 231)', color: 'white', borderRadius: '0.5rem' }} className="focus:outline-none">
-                  {counter.toFixed(2)} s
-                </button>
+                  height: '2.5rem',
+                  backgroundColor: 'rgb(43, 119, 231)',
+                  color: 'white',
+                  padding: '0 1rem',
+                  borderRadius: '0.5rem',
+                  // No necesitas margen para el último botón, a menos que planees añadir más botones después
+                }}
+                className="focus:outline-none">
+                {stargateCurrent}/{stargates.length}
+              </button>
+              <button
+                style={{
+                  height: '2.5rem',
+                  backgroundColor: 'rgb(43, 119, 231)',
+                  color: 'white',
+                  padding: '0 1rem',
+                  borderRadius: '0.5rem',
+                  marginBottom: '10px', // Añade un margen abajo al primer botón
+                }}
+                className="focus:outline-none">
+                {formatCounter(counter)}
+              </button>
+            </div>
+          )}
 
-              </div><div className='absolute  z-10 flex items-center justify-center'
+          {isMobileDevice() && (
+            <>
+              <div className='absolute z-10 flex '
                 style={{
-                  height: '5%',
-                  width: '5%',
-                  top: '5%',
-                  left: '5%',
+                  bottom: '0%',
+                  left: '0%',
                   borderRadius: '20px',
-                  backgroundColor: 'rgba(43, 79, 151, 0.3)',
+                  gap: '10px', // Esto no funcionará directamente en el estilo inline, ver nota abajo
                 }}>
-                <button style={{ height: '2.5rem', width: '6rem', backgroundColor: 'rgb(43, 119, 231)', color: 'white', borderRadius: '0.5rem' }} className="focus:outline-none">
-                  {stargateCurrent}/{stargates.length}
+                <Joystick setIsUp={setIsUp} setIsDown={setIsDown} setIsRight={setIsRight} setIsLeft={setIsLeft} setTargetRotation={setTargetRotation} />
+                <div className='absolute z-10 flex '
+                  style={{
+                    bottom: '7rem',
+                    left: '0.9rem',
+                    borderRadius: '20px',
+                    gap: '30px', // Esto no funcionará directamente en el estilo inline, ver nota abajo
+                  }}>
+                  <button
+                    style={{
+                      height: '2.5rem',
+                      backgroundColor: 'rgb(43, 119, 231)',
+                      color: 'white',
+                      padding: '0 0.3rem',
+                      borderRadius: '99rem',
+                      // No necesitas margen para el último botón, a menos que planees añadir más botones después
+                    }}
+                    className="focus:outline-none"
+                    onTouchStart={() => setIsCounterClockwise(true)}
+                    onTouchEnd={() => {
+                      setIsCounterClockwise(false);
+                      setTargetRotation({ x: 0, y: 0, z: 0 });
+                    }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="white" className="bi bi-arrow-counterclockwise" viewBox="0 0 16 16">
+                      <path fillRule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z" />
+                      <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466" />
+                    </svg>
+                  </button>
+                  <button
+                    style={{
+                      height: '2.5rem',
+                      backgroundColor: 'rgb(43, 119, 231)',
+                      color: 'white',
+                      padding: '0 0.3rem',
+                      borderRadius: '99rem',
+                      marginBottom: '10px', // Añade un margen abajo al primer botón
+                    }}
+                    className="focus:outline-none"
+                    onTouchStart={() => setIsClockwise(true)}
+                    onTouchEnd={() => {
+                      setIsClockwise(false);
+                      setTargetRotation({ x: 0, y: 0, z: 0 });
+                    }}
+                  >
+
+                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="white" className="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                      <path fillRule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z" />
+                      <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div className='absolute z-10 flex '
+                style={{
+                  bottom: '5%',
+                  right: '2.5%',
+                  borderRadius: '20px',
+                  gap: '10px', // Esto no funcionará directamente en el estilo inline, ver nota abajo
+                }}>
+                <button
+                  style={{
+                    height: '2.5rem',
+                    backgroundColor: 'rgb(43, 119, 231)',
+                    color: 'white',
+                    padding: '0 0.3rem',
+                    borderRadius: '0.5rem',
+                    // No necesitas margen para el último botón, a menos que planees añadir más botones después
+                  }}
+                  className="focus:outline-none"
+                  onTouchStart={() => setIsBackward(true)}
+                  onTouchEnd={() => setIsBackward(false)}
+                >
+
+                  <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="white" className="bi bi-forward-fill" viewBox="0 0 16 16"
+                    style={{ transform: 'scaleX(-1)' }}>
+                    <path d="m9.77 12.11 4.012-2.953a.647.647 0 0 0 0-1.114L9.771 5.09a.644.644 0 0 0-.971.557V6.65H2v3.9h6.8v1.003c0 .505.545.808.97.557" />
+                  </svg>
+                </button>
+                <button
+                  style={{
+                    height: '2.5rem',
+                    backgroundColor: 'rgb(43, 119, 231)',
+                    color: 'white',
+                    padding: '0 0.3rem',
+                    borderRadius: '0.5rem',
+                    marginBottom: '10px', // Añade un margen abajo al primer botón
+                  }}
+                  className="focus:outline-none"
+                  onTouchStart={() => setIsForward(true)}
+                  onTouchEnd={() => setIsForward(false)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="white" className="bi bi-forward-fill" viewBox="0 0 16 16" >
+                    <path d="m9.77 12.11 4.012-2.953a.647.647 0 0 0 0-1.114L9.771 5.09a.644.644 0 0 0-.971.557V6.65H2v3.9h6.8v1.003c0 .505.545.808.97.557" />
+                  </svg>
                 </button>
               </div>
+
             </>
           )}
 
 
-          <div className="absolute inset-0 z-10 flex items-center "
-            style={{ left: '1%' }}>
+          {!isMobileDevice() && (
+            <div className="absolute inset-0 z-10 flex items-center "
+              style={{ left: '1%' }}>
 
-            <button
-              className="relative h-12 w-9 text-white bg-blue-500 rounded-md focus:outline-none focus:outline-none"
-              onClick={() => {
-                if (!showResult) {
-                  setIsOpen(!isOpen);
-                }
-              }}>
+              <button
+                className="relative h-12 w-9 text-white bg-blue-500 rounded-md focus:outline-none focus:outline-none"
+                onClick={() => {
+                  if (!showResult) {
+                    setIsOpen(!isOpen);
+                  }
+                }}>
+                {isOpen && (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="27" height="27" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                    style={{
+                      position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) scaleX(-1)'
+                    }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
+                {!isOpen && (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-joystick" viewBox="0 0 16 16"
+                    style={{
+                      position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'
+                    }}>
+                    <path d="M10 2a2 2 0 0 1-1.5 1.937v5.087c.863.083 1.5.377 1.5.726 0 .414-.895.75-2 .75s-2-.336-2-.75c0-.35.637-.643 1.5-.726V3.937A2 2 0 1 1 10 2" />
+                    <path d="M0 9.665v1.717a1 1 0 0 0 .553.894l6.553 3.277a2 2 0 0 0 1.788 0l6.553-3.277a1 1 0 0 0 .553-.894V9.665c0-.1-.06-.19-.152-.23L9.5 6.715v.993l5.227 2.178a.125.125 0 0 1 .001.23l-5.94 2.546a2 2 0 0 1-1.576 0l-5.94-2.546a.125.125 0 0 1 .001-.23L6.5 7.708l-.013-.988L.152 9.435a.25.25 0 0 0-.152.23" />
+                  </svg>
+                )}
+              </button>
               {isOpen && (
-                <svg xmlns="http://www.w3.org/2000/svg" width="27" height="27" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                  style={{
-                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) scaleX(-1)'
-                  }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
-              )}
-              {!isOpen && (
-                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-joystick" viewBox="0 0 16 16"
-                  style={{
-                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'
-                  }}>
-                  <path d="M10 2a2 2 0 0 1-1.5 1.937v5.087c.863.083 1.5.377 1.5.726 0 .414-.895.75-2 .75s-2-.336-2-.75c0-.35.637-.643 1.5-.726V3.937A2 2 0 1 1 10 2" />
-                  <path d="M0 9.665v1.717a1 1 0 0 0 .553.894l6.553 3.277a2 2 0 0 0 1.788 0l6.553-3.277a1 1 0 0 0 .553-.894V9.665c0-.1-.06-.19-.152-.23L9.5 6.715v.993l5.227 2.178a.125.125 0 0 1 .001.23l-5.94 2.546a2 2 0 0 1-1.576 0l-5.94-2.546a.125.125 0 0 1 .001-.23L6.5 7.708l-.013-.988L.152 9.435a.25.25 0 0 0-.152.23" />
-                </svg>
-              )}
-            </button>
-            {isOpen && (
-              <div style={{ height: '50vh', width: '50vh', borderRadius: '20px', backgroundColor: 'rgba(43, 79, 151, 0.3)' }} className="absolute left-20 bg-white  py-1 z-50 flex flex-col justify-around items-center">
-                <div style={{ height: '5%' }} className="w-full" />
-                <div style={{ height: '70%', position: 'relative' }} className="w-80 ">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="55" height="55" fill="white" className="bi bi-dpad-fill" viewBox="0 0 16 16"
-                    style={{
-                      position: 'absolute', top: '60%', left: '50%', transform: 'translate(-50%, -50%)'
-                    }}>
-                    <path d="M6.5 0A1.5 1.5 0 0 0 5 1.5v3a.5.5 0 0 1-.5.5h-3A1.5 1.5 0 0 0 0 6.5v3A1.5 1.5 0 0 0 1.5 11h3a.5.5 0 0 1 .5.5v3A1.5 1.5 0 0 0 6.5 16h3a1.5 1.5 0 0 0 1.5-1.5v-3a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 0 16 9.5v-3A1.5 1.5 0 0 0 14.5 5h-3a.5.5 0 0 1-.5-.5v-3A1.5 1.5 0 0 0 9.5 0zm1.288 2.34a.25.25 0 0 1 .424 0l.799 1.278A.25.25 0 0 1 8.799 4H7.201a.25.25 0 0 1-.212-.382zm0 11.32-.799-1.277A.25.25 0 0 1 7.201 12H8.8a.25.25 0 0 1 .212.383l-.799 1.278a.25.25 0 0 1-.424 0Zm-4.17-4.65-1.279-.798a.25.25 0 0 1 0-.424l1.279-.799A.25.25 0 0 1 4 7.201V8.8a.25.25 0 0 1-.382.212Zm10.043-.798-1.278.799A.25.25 0 0 1 12 8.799V7.2a.25.25 0 0 1 .383-.212l1.278.799a.25.25 0 0 1 0 .424Z" />
-                  </svg>
+                <div style={{ height: '50vh', width: '50vh', borderRadius: '20px', backgroundColor: 'rgba(43, 79, 151, 0.3)' }} className="absolute left-20 bg-white  py-1 z-50 flex flex-col justify-around items-center">
+                  <div style={{ height: '5%' }} className="w-full" />
+                  <div style={{ height: '70%', position: 'relative' }} className="w-80 ">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="55" height="55" fill="white" className="bi bi-dpad-fill" viewBox="0 0 16 16"
+                      style={{
+                        position: 'absolute', top: '60%', left: '50%', transform: 'translate(-50%, -50%)'
+                      }}>
+                      <path d="M6.5 0A1.5 1.5 0 0 0 5 1.5v3a.5.5 0 0 1-.5.5h-3A1.5 1.5 0 0 0 0 6.5v3A1.5 1.5 0 0 0 1.5 11h3a.5.5 0 0 1 .5.5v3A1.5 1.5 0 0 0 6.5 16h3a1.5 1.5 0 0 0 1.5-1.5v-3a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 0 16 9.5v-3A1.5 1.5 0 0 0 14.5 5h-3a.5.5 0 0 1-.5-.5v-3A1.5 1.5 0 0 0 9.5 0zm1.288 2.34a.25.25 0 0 1 .424 0l.799 1.278A.25.25 0 0 1 8.799 4H7.201a.25.25 0 0 1-.212-.382zm0 11.32-.799-1.277A.25.25 0 0 1 7.201 12H8.8a.25.25 0 0 1 .212.383l-.799 1.278a.25.25 0 0 1-.424 0Zm-4.17-4.65-1.279-.798a.25.25 0 0 1 0-.424l1.279-.799A.25.25 0 0 1 4 7.201V8.8a.25.25 0 0 1-.382.212Zm10.043-.798-1.278.799A.25.25 0 0 1 12 8.799V7.2a.25.25 0 0 1 .383-.212l1.278.799a.25.25 0 0 1 0 .424Z" />
+                    </svg>
 
-                  <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-arrow-clockwise" viewBox="0 0 16 16"
-                    style={{
-                      position: 'absolute', top: '30%', left: '83%', transform: 'translate(-50%, -50%)'
-                    }}>
-                    <path fillRule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z" />
-                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
-                  </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-arrow-clockwise" viewBox="0 0 16 16"
+                      style={{
+                        position: 'absolute', top: '30%', left: '83%', transform: 'translate(-50%, -50%)'
+                      }}>
+                      <path fillRule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z" />
+                      <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
+                    </svg>
 
-                  <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-arrow-counterclockwise" viewBox="0 0 16 16"
-                    style={{
-                      position: 'absolute', top: '30%', left: '17%', transform: 'translate(-50%, -50%)'
-                    }}>
-                    <path fillRule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z" />
-                    <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466" />
-                  </svg>
-                  <div style={{ height: '50%' }} className="w-full flex">
-                    <div style={{
-                      width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%'
-                    }}>
-                      <button onClick={() => handleClick('counterClockwise')} style={{
-                        padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                        border: 'none', color: 'white', outline: 'none'
-                      }} >
-                        {keyConfigPreview.counterClockwise}
-                      </button>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-arrow-counterclockwise" viewBox="0 0 16 16"
+                      style={{
+                        position: 'absolute', top: '30%', left: '17%', transform: 'translate(-50%, -50%)'
+                      }}>
+                      <path fillRule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z" />
+                      <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466" />
+                    </svg>
+                    <div style={{ height: '50%' }} className="w-full flex">
+                      <div style={{
+                        width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%'
+                      }}>
+                        <button onClick={() => handleClick('counterClockwise')} style={{
+                          padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                          border: 'none', color: 'white', outline: 'none'
+                        }} >
+                          {keyConfigPreview.counterClockwise}
+                        </button>
+                      </div>
+                      <div style={{
+                        width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%'
+                      }}>
+                        <button onClick={() => handleClick('up')} style={{
+                          position: 'absolute', top: '20%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                          border: 'none', color: 'white', outline: 'none'
+                        }} >
+                          {keyConfigPreview.up}
+                        </button>
+                      </div>
+                      <div style={{
+                        width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%'
+                      }}>
+                        <button onClick={() => handleClick('clockwise')} style={{
+                          padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                          border: 'none', color: 'white', outline: 'none'
+                        }} >
+                          {keyConfigPreview.clockwise}
+                        </button>
+                      </div>
                     </div>
-                    <div style={{
-                      width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%'
-                    }}>
-                      <button onClick={() => handleClick('up')} style={{
-                        position: 'absolute', top: '20%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                        border: 'none', color: 'white', outline: 'none'
-                      }} >
-                        {keyConfigPreview.up}
-                      </button>
-                    </div>
-                    <div style={{
-                      width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%'
-                    }}>
-                      <button onClick={() => handleClick('clockwise')} style={{
-                        padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                        border: 'none', color: 'white', outline: 'none'
-                      }} >
-                        {keyConfigPreview.clockwise}
-                      </button>
+                    <div style={{ height: '50%' }} className="w-full flex">
+                      <div style={{
+                        width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%'
+                      }}>
+                        <button onClick={() => handleClick('left')} style={{
+                          position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                          border: 'none', color: 'white', outline: 'none'
+                        }} >
+                          {keyConfigPreview.left}
+                        </button>
+                      </div>
+                      <div style={{
+                        width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%'
+                      }}>
+                        <button onClick={() => handleClick('down')} style={{
+                          padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                          border: 'none', color: 'white', outline: 'none'
+                        }} >
+                          {keyConfigPreview.down}
+                        </button>
+                      </div>
+                      <div style={{
+                        width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%'
+                      }}>
+                        <button onClick={() => handleClick('right')} style={{
+                          position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
+                          border: 'none', color: 'white', outline: 'none'
+                        }} >
+                          {keyConfigPreview.right}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div style={{ height: '50%' }} className="w-full flex">
-                    <div style={{
-                      width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%'
-                    }}>
-                      <button onClick={() => handleClick('left')} style={{
+                  <div style={{ height: '30%' }} className="w-full flex">
+                    <div style={{ width: '50%' }} className="h-full flex items-center justify-center relative">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-forward-fill" viewBox="0 0 16 16"
+                        style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%) scaleX(-1)' }}>
+                        <path d="m9.77 12.11 4.012-2.953a.647.647 0 0 0 0-1.114L9.771 5.09a.644.644 0 0 0-.971.557V6.65H2v3.9h6.8v1.003c0 .505.545.808.97.557" />
+                      </svg>
+                      <button onClick={() => handleClick('backward')} style={{
                         position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
                         border: 'none', color: 'white', outline: 'none'
                       }} >
-                        {keyConfigPreview.left}
+                        {keyConfigPreview.backward}
                       </button>
                     </div>
-                    <div style={{
-                      width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%'
-                    }}>
-                      <button onClick={() => handleClick('down')} style={{
-                        padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                        border: 'none', color: 'white', outline: 'none'
-                      }} >
-                        {keyConfigPreview.down}
-                      </button>
-                    </div>
-                    <div style={{
-                      width: '33.333333%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%'
-                    }}>
-                      <button onClick={() => handleClick('right')} style={{
+                    <div style={{ width: '50%' }} className="h-full flex items-center justify-center relative">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-forward-fill" viewBox="0 0 16 16"
+                        style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+                        <path d="m9.77 12.11 4.012-2.953a.647.647 0 0 0 0-1.114L9.771 5.09a.644.644 0 0 0-.971.557V6.65H2v3.9h6.8v1.003c0 .505.545.808.97.557" />
+                      </svg>
+                      <button onClick={() => handleClick('forward')} style={{
                         position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
                         border: 'none', color: 'white', outline: 'none'
                       }} >
-                        {keyConfigPreview.right}
+                        {keyConfigPreview.forward}
                       </button>
                     </div>
                   </div>
+                  <div style={{ height: '5%' }} className="w-full" />
+
                 </div>
-                <div style={{ height: '30%' }} className="w-full flex">
-                  <div style={{ width: '50%' }} className="h-full flex items-center justify-center relative">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-forward-fill" viewBox="0 0 16 16"
-                      style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%) scaleX(-1)' }}>
-                      <path d="m9.77 12.11 4.012-2.953a.647.647 0 0 0 0-1.114L9.771 5.09a.644.644 0 0 0-.971.557V6.65H2v3.9h6.8v1.003c0 .505.545.808.97.557" />
-                    </svg>
-                    <button onClick={() => handleClick('backward')} style={{
-                      position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                      border: 'none', color: 'white', outline: 'none'
-                    }} >
-                      {keyConfigPreview.backward}
-                    </button>
-                  </div>
-                  <div style={{ width: '50%' }} className="h-full flex items-center justify-center relative">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="white" className="bi bi-forward-fill" viewBox="0 0 16 16"
-                      style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-                      <path d="m9.77 12.11 4.012-2.953a.647.647 0 0 0 0-1.114L9.771 5.09a.644.644 0 0 0-.971.557V6.65H2v3.9h6.8v1.003c0 .505.545.808.97.557" />
-                    </svg>
-                    <button onClick={() => handleClick('forward')} style={{
-                      position: 'absolute', top: '50%', padding: '10px 20px', fontSize: '20px', backgroundColor: 'rgba(43, 139, 231, 0.9)', opacity: 0.8, borderRadius: '10px',
-                      border: 'none', color: 'white', outline: 'none'
-                    }} >
-                      {keyConfigPreview.forward}
-                    </button>
-                  </div>
-                </div>
-                <div style={{ height: '5%' }} className="w-full" />
-
-              </div>
 
 
-            )}
-          </div>
+              )}
+            </div>
+          )}
+
         </div>
       }
 
@@ -689,10 +906,10 @@ function Home() {
               </>
               {start &&
                 <CameraController spaceShipRef={spaceShipRef} collisionObjects={collisionObjects.current} nextGate={nextGate} nMax={stargates.length}
-                  puntoControlRef={puntoControlRef} typeCamera={typeCamera} setIsForward={setIsForward} isForward={isForward} isBackward={isBackward}
+                  puntoControlRef={puntoControlRef} setIsForward={setIsForward} isForward={isForward} isBackward={isBackward}
                   isLeft={isLeft} isRight={isRight} isUp={isUp} isDown={isDown} isClockwise={isClockwise} isCounterClockwise={isCounterClockwise}
                   currentMovementSpeed={currentMovementSpeed} setCurrentMovementSpeed={setCurrentMovementSpeed}
-                  targetRotation={targetRotation} setTargetRotation={setTargetRotation} />
+                  targetRotation={targetRotation} setTargetRotation={setTargetRotation} playBoost={playBoost} playHit={playHit} />
               }
 
               {!start &&
